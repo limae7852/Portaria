@@ -1,122 +1,17 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Controle de Portaria - Firebase</title>
-  <style>
-    :root{font-family:Inter,Segoe UI,Roboto,Arial,sans-serif}
-    body{margin:0;padding:20px;background:#f6f8fb;color:#111}
-    .container{max-width:1000px;margin:0 auto}
-    h1{margin-bottom:10px}
-    .card{background:#fff;border-radius:10px;padding:16px;box-shadow:0 6px 18px rgba(20,30,60,0.06);margin-bottom:16px}
-    label{display:block;margin:8px 0 4px;font-size:14px}
-    input,select,textarea,button{font-size:14px;padding:8px;border-radius:6px;border:1px solid #d6dbe6;width:100%;box-sizing:border-box}
-    .row{display:flex;gap:12px}
-    .row .col{flex:1}
-    .actions{display:flex;gap:8px;flex-wrap:wrap}
-    table{width:100%;border-collapse:collapse}
-    th,td{padding:8px;border-bottom:1px solid #eee;text-align:left}
-    .btn{display:inline-block;padding:8px 12px;border-radius:8px;border:0;cursor:pointer}
-    .btn-primary{background:#2563eb;color:#fff}
-    .btn-ghost{background:transparent;border:1px solid #e6e9ef}
-    .btn-danger{background:#ef4444;color:#fff}
-    .status-badge{padding:6px 8px;border-radius:10px;font-weight:600}
-    .status-in{background:#eef2ff;color:#3730a3}
-    .status-out{background:#ecfdf5;color:#065f46}
-    .small{font-size:13px;color:#555}
-    @media (max-width:720px){.row{flex-direction:column}}
-  </style>
-</head>
-<body>
-  <div class="container">
-    <h1>Controle de Portaria</h1>
-
-    <div class="card" id="formCard">
-      <h3>Novo Registro</h3>
-      <div class="row">
-        <div class="col">
-          <label for="visitorName">Nome do visitante</label>
-          <input id="visitorName" placeholder="Ex: João Silva" />
-        </div>
-        <div class="col">
-          <label for="visitorDoc">Documento (RG/CPF)</label>
-          <input id="visitorDoc" placeholder="Ex: 000.000.000-00" />
-        </div>
-      </div>
-      <div class="row">
-        <div class="col">
-          <label for="vehicle">Veículo (opcional)</label>
-          <input id="vehicle" placeholder="Ex: HB20 - ABC1D23" />
-        </div>
-        <div class="col">
-          <label for="contact">Pessoa a visitar / Destino</label>
-          <input id="contact" placeholder="Ex: Recepção / Apartamento 101 / José" />
-        </div>
-      </div>
-      <label for="reason">Motivo</label>
-      <textarea id="reason" rows="2" placeholder="Ex: Entrega, visita técnica"></textarea>
-      <div style="margin-top:10px;display:flex;gap:10px;align-items:center">
-        <button class="btn btn-primary" id="btnCheckin">Registrar Entrada</button>
-        <button class="btn btn-ghost" id="btnClear">Limpar</button>
-        <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
-          <select id="filterStatus">
-            <option value="all">Todos</option>
-            <option value="in">Entrados</option>
-            <option value="out">Saíram</option>
-          </select>
-          <input id="searchInput" placeholder="Pesquisar por nome, doc ou veículo" style="width:260px" />
-        </div>
-      </div>
-    </div>
-
-    <div class="card">
-      <div style="display:flex;align-items:center;gap:12px">
-        <h3 style="margin:0">Registros</h3>
-        <div class="small">Lista em tempo real (Firestore)</div>
-        <div style="margin-left:auto;display:flex;gap:8px">
-          <button class="btn btn-ghost" id="btnExport">Exportar CSV</button>
-          <button class="btn btn-ghost" id="btnClearAll">Limpar tudo (dev)</button>
-        </div>
-      </div>
-      <div style="margin-top:12px;overflow:auto;max-height:520px">
-        <table id="tableList">
-          <thead>
-            <tr>
-              <th>Nome</th>
-              <th>Doc</th>
-              <th>Veículo</th>
-              <th>Destino</th>
-              <th>Entrada</th>
-              <th>Saída</th>
-              <th>Status</th>
-              <th>Ações</th>
-            </tr>
-          </thead>
-          <tbody id="tbody"></tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Controle de Portaria</title>
   <script type="module">
-    // --- SDKs do Firebase (modular) via CDN ---
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
-    import {
-      getFirestore,
-      collection,
-      addDoc,
-      onSnapshot,
-      query,
-      orderBy,
-      serverTimestamp,
-      doc,
-      updateDoc,
-      deleteDoc,
-      getDocs
-    } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
+    // --- Importa os módulos Firebase ---
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { 
+      getFirestore, collection, addDoc, getDocs, updateDoc, doc, serverTimestamp 
+    } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
-    // --- CONFIGURE AQUI: Substitua pelos dados do seu projeto Firebase ---
+    // --- CONFIGURAÇÃO DO FIREBASE ---
     const firebaseConfig = {
       apiKey: "AIzaSyCmZBxRVcmTPJFLdWWcNd07LZPJYZnR5N0",
       authDomain: "portaria-e22ae.firebaseapp.com",
@@ -126,133 +21,116 @@
       appId: "1:663485115589:web:4b2f860ede7f0f7b5854ac",
       measurementId: "G-QEGQN6CTBB"
     };
-    // ---------------------------------------------------------------------
 
+    // Inicializa o Firebase e Firestore
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
-    const registrosCol = collection(db, "registros_portaria");
 
-    const visitorName = document.getElementById("visitorName");
-    const visitorDoc = document.getElementById("visitorDoc");
-    const vehicle = document.getElementById("vehicle");
-    const contact = document.getElementById("contact");
-    const reason = document.getElementById("reason");
-    const tbody = document.getElementById("tbody");
-    const btnCheckin = document.getElementById("btnCheckin");
-    const btnClear = document.getElementById("btnClear");
-    const filterStatus = document.getElementById("filterStatus");
-    const searchInput = document.getElementById("searchInput");
-    const btnExport = document.getElementById("btnExport");
-    const btnClearAll = document.getElementById("btnClearAll");
+    // --- FUNÇÃO PARA SALVAR NOVO REGISTRO ---
+    async function registrarEntrada() {
+      const nome = document.getElementById('nome').value;
+      const documento = document.getElementById('documento').value;
+      const veiculo = document.getElementById('veiculo').value;
+      const destino = document.getElementById('destino').value;
+      const motivo = document.getElementById('motivo').value;
 
-    // Registrar entrada
-    btnCheckin.addEventListener("click", async () => {
-      const nome = visitorName.value.trim();
-      if (!nome) return alert("Informe o nome do visitante!");
+      if (!nome || !documento) {
+        alert("Preencha pelo menos nome e documento!");
+        return;
+      }
 
-      await addDoc(registrosCol, {
-        nome,
-        doc: visitorDoc.value.trim() || "",
-        vehicle: vehicle.value.trim() || "",
-        destino: contact.value.trim() || "",
-        motivo: reason.value.trim() || "",
-        status: "in",
-        checkin: serverTimestamp(),
-        checkout: null
-      });
-
-      clearForm();
-    });
-
-    btnClear.addEventListener("click", clearForm);
-    function clearForm() {
-      visitorName.value = "";
-      visitorDoc.value = "";
-      vehicle.value = "";
-      contact.value = "";
-      reason.value = "";
-    }
-
-    function formatDate(t) {
-      if (!t) return "";
       try {
-        const d = t.toDate ? t.toDate() : new Date(t);
-        return d.toLocaleString();
-      } catch (e) {
-        return "";
-      }
-    }
-
-    function renderRow(id, data) {
-      const tr = document.createElement("tr");
-      tr.innerHTML = `
-        <td>${data.nome || ""}</td>
-        <td>${data.doc || ""}</td>
-        <td>${data.vehicle || ""}</td>
-        <td>${data.destino || ""}</td>
-        <td>${formatDate(data.checkin)}</td>
-        <td>${formatDate(data.checkout)}</td>
-        <td><span class="status-badge ${data.status === "in" ? "status-in" : "status-out"}">
-          ${data.status === "in" ? "Entrado" : "Saiu"}</span>
-        </td>
-        <td class="actions">
-          ${data.status === "in" ? `<button class="btn btn-primary btn-checkout">Registrar Saída</button>` : ""}
-          <button class="btn btn-ghost btn-delete">Excluir</button>
-        </td>`;
-
-      tr.querySelector(".btn-delete").addEventListener("click", async () => {
-        if (confirm("Deseja excluir este registro?")) {
-          await deleteDoc(doc(db, "registros_portaria", id));
-        }
-      });
-
-      const checkoutBtn = tr.querySelector(".btn-checkout");
-      if (checkoutBtn) {
-        checkoutBtn.addEventListener("click", async () => {
-          if (confirm("Registrar saída deste visitante?")) {
-            await updateDoc(doc(db, "registros_portaria", id), {
-              status: "out",
-              checkout: serverTimestamp()
-            });
-          }
+        await addDoc(collection(db, "registros_portaria"), {
+          nome,
+          documento,
+          veiculo,
+          destino,
+          motivo,
+          horarioEntrada: serverTimestamp(),
+          horarioSaida: null,
+          status: "Entrada"
         });
+        alert("Entrada registrada com sucesso!");
+        carregarHistorico();
+      } catch (error) {
+        console.error("Erro ao salvar:", error);
       }
-
-      return tr;
     }
 
-    // Atualização em tempo real
-    const q = query(registrosCol, orderBy("checkin", "desc"));
-    onSnapshot(q, (snapshot) => {
-      tbody.innerHTML = "";
-      snapshot.forEach((docSnap) => {
-        tbody.appendChild(renderRow(docSnap.id, docSnap.data()));
-      });
-    });
-
-    // Exportar CSV
-    btnExport.addEventListener("click", async () => {
-      const snap = await getDocs(q);
-      let csv = "nome,doc,veiculo,destino,status,checkin,checkout\n";
-      snap.forEach((d) => {
-        const data = d.data();
-        csv += `${data.nome || ""},${data.doc || ""},${data.vehicle || ""},${data.destino || ""},${data.status || ""},${formatDate(data.checkin)},${formatDate(data.checkout)}\n`;
-      });
-      const blob = new Blob([csv], { type: "text/csv" });
-      const a = document.createElement("a");
-      a.href = URL.createObjectURL(blob);
-      a.download = "registros_portaria.csv";
-      a.click();
-    });
-
-    // Limpar todos os registros (modo desenvolvedor)
-    btnClearAll.addEventListener("click", async () => {
-      if (confirm("Remover todos os registros?")) {
-        const snap = await getDocs(registrosCol);
-        snap.forEach((d) => deleteDoc(doc(db, "registros_portaria", d.id)));
-        alert("Registros apagados!");
+    // --- FUNÇÃO PARA MARCAR SAÍDA ---
+    async function registrarSaida(id) {
+      try {
+        const registroRef = doc(db, "registros_portaria", id);
+        await updateDoc(registroRef, {
+          horarioSaida: serverTimestamp(),
+          status: "Saída"
+        });
+        alert("Saída registrada!");
+        carregarHistorico();
+      } catch (error) {
+        console.error("Erro ao atualizar saída:", error);
       }
-    });
+    }
+
+    // --- FUNÇÃO PARA CARREGAR HISTÓRICO ---
+    async function carregarHistorico() {
+      const tabela = document.getElementById('tabelaHistorico');
+      tabela.innerHTML = "";
+
+      const querySnapshot = await getDocs(collection(db, "registros_portaria"));
+      querySnapshot.forEach((docSnap) => {
+        const data = docSnap.data();
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${data.nome}</td>
+          <td>${data.documento}</td>
+          <td>${data.veiculo || '-'}</td>
+          <td>${data.destino || '-'}</td>
+          <td>${data.motivo || '-'}</td>
+          <td>${data.status}</td>
+          <td>${data.horarioEntrada ? new Date(data.horarioEntrada.seconds * 1000).toLocaleString() : '-'}</td>
+          <td>${data.horarioSaida ? new Date(data.horarioSaida.seconds * 1000).toLocaleString() : '-'}</td>
+          <td>
+            ${data.status === "Entrada" ? `<button onclick="registrarSaida('${docSnap.id}')">Registrar Saída</button>` : "-"}
+          </td>
+        `;
+        tabela.appendChild(tr);
+      });
+    }
+
+    // Carrega histórico ao abrir a página
+    window.onload = carregarHistorico;
+    window.registrarEntrada = registrarEntrada;
+    window.registrarSaida = registrarSaida;
   </script>
+</head>
+<body>
+  <h2>📋 Controle de Portaria</h2>
+  <form onsubmit="event.preventDefault(); registrarEntrada();">
+    <input id="nome" placeholder="Nome" required>
+    <input id="documento" placeholder="Documento" required>
+    <input id="veiculo" placeholder="Veículo">
+    <input id="destino" placeholder="Destino">
+    <input id="motivo" placeholder="Motivo">
+    <button type="submit">Registrar Entrada</button>
+  </form>
+
+  <h3>📜 Histórico de Entradas e Saídas</h3>
+  <table border="1" cellpadding="5">
+    <thead>
+      <tr>
+        <th>Nome</th>
+        <th>Documento</th>
+        <th>Veículo</th>
+        <th>Destino</th>
+        <th>Motivo</th>
+        <th>Status</th>
+        <th>Entrada</th>
+        <th>Saída</th>
+        <th>Ações</th>
+      </tr>
+    </thead>
+    <tbody id="tabelaHistorico"></tbody>
+  </table>
 </body>
 </html>
