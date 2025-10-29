@@ -106,17 +106,18 @@
 
     // --- CONFIGURE AQUI: cole o objeto firebaseConfig do seu projeto ---
     const firebaseConfig = {
-      apiKey: "SUA_API_KEY",
-      authDomain: "SEU_AUTH_DOMAIN",
-      projectId: "SEU_PROJECT_ID",
-      storageBucket: "SEU_STORAGE_BUCKET",
-      messagingSenderId: "SEU_SENDER_ID",
-      appId: "SEU_APP_ID"
-    }
+      apiKey: "AIzaSyCmZBxRVcmTPJFLdWWcNd07LZPJYZnR5N0",
+      authDomain: "portaria-e22ae.firebaseapp.com",
+      projectId: "portaria-e22ae",
+      storageBucket: "portaria-e22ae.firebasestorage.app",
+      messagingSenderId: "663485115589",
+      appId: "1:663485115589:web:4b2f860ede7f0f7b5854ac",
+      measurementId: "G-QEGQN6CTBB"
+    };
     // ---------------------------------------------------------------
 
-    const app = initializeApp(firebaseConfig)
-    const db = getFirestore(app)
+    const app = initializeApp(firebaseConfig);
+    const analytics = getAnalytics(app);
 
     // referências
     const registrosCol = collection(db, 'registros_portaria')
