@@ -15,12 +15,13 @@
       apiKey: "AIzaSyCmZBxRVcmTPJFLdWWcNd07LZPJYZnR5N0",
       authDomain: "portaria-e22ae.firebaseapp.com",
       projectId: "portaria-e22ae",
-      storageBucket: "portaria-e22ae.firebasestorage.app",
+      storageBucket: "portaria-e22ae.appspot.com", // ✅ corrigido
       messagingSenderId: "663485115589",
       appId: "1:663485115589:web:4b2f860ede7f0f7b5854ac",
       measurementId: "G-QEGQN6CTBB"
     };
 
+    // Inicializa Firebase e Firestore
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
 
@@ -50,6 +51,11 @@
         });
         alert("✅ Entrada registrada com sucesso!");
         carregarHistorico();
+        document.getElementById('nome').value = '';
+        document.getElementById('documento').value = '';
+        document.getElementById('veiculo').value = '';
+        document.getElementById('destino').value = '';
+        document.getElementById('motivo').value = '';
       } catch (error) {
         console.error("❌ Erro ao salvar:", error);
         alert("Erro ao salvar no banco. Veja o console para detalhes.");
@@ -64,7 +70,7 @@
           horarioSaida: serverTimestamp(),
           status: "Saída"
         });
-        alert("Saída registrada!");
+        alert("✅ Saída registrada!");
         carregarHistorico();
       } catch (error) {
         console.error("Erro ao atualizar saída:", error);
@@ -97,6 +103,7 @@
       });
     }
 
+    // Torna funções acessíveis no escopo global
     window.onload = carregarHistorico;
     window.registrarEntrada = registrarEntrada;
     window.registrarSaida = registrarSaida;
