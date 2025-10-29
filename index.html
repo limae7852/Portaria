@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Controle de Portaria</title>
   <script type="module">
-    // --- Importa os módulos Firebase ---
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
     import { 
       getFirestore, collection, addDoc, getDocs, updateDoc, doc, serverTimestamp 
@@ -16,12 +15,11 @@
       apiKey: "AIzaSyCmZBxRVcmTPJFLdWWcNd07LZPJYZnR5N0",
       authDomain: "portaria-e22ae.firebaseapp.com",
       projectId: "portaria-e22ae",
-      storageBucket: "portaria-e22ae.firebasestorage.app",
+      storageBucket: "portaria-e22ae.appspot.com", // ✅ corrigido
       messagingSenderId: "663485115589",
       appId: "1:663485115589:web:4b2f860ede7f0f7b5854ac",
     };
 
-    // Inicializa o Firebase e Firestore
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
 
@@ -49,14 +47,15 @@
           horarioSaida: null,
           status: "Entrada"
         });
-        alert("Entrada registrada com sucesso!");
+        alert("✅ Entrada registrada com sucesso!");
         carregarHistorico();
       } catch (error) {
-        console.error("Erro ao salvar:", error);
+        console.error("❌ Erro ao salvar:", error);
+        alert("Erro ao salvar no banco. Veja o console para detalhes.");
       }
     }
 
-    // --- FUNÇÃO PARA MARCAR SAÍDA ---
+    // --- FUNÇÃO PARA REGISTRAR SAÍDA ---
     async function registrarSaida(id) {
       try {
         const registroRef = doc(db, "registros_portaria", id);
@@ -97,7 +96,6 @@
       });
     }
 
-    // Carrega histórico ao abrir a página
     window.onload = carregarHistorico;
     window.registrarEntrada = registrarEntrada;
     window.registrarSaida = registrarSaida;
