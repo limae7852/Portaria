@@ -1,40 +1,90 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Controle de Portaria</title>
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-    import { 
-      getFirestore, collection, addDoc, getDocs, updateDoc, doc, serverTimestamp 
-    } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f3f4f6;
+      margin: 40px;
+    }
+    h2 {
+      text-align: center;
+      color: #222;
+    }
+    form {
+      background: #fff;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 0 6px #ccc;
+      margin-bottom: 20px;
+      max-width: 600px;
+      margin-inline: auto;
+    }
+    input, button {
+      padding: 8px;
+      margin: 6px 0;
+      width: 100%;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+    }
+    button {
+      background: #007bff;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #0056b3;
+    }
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      background: #fff;
+    }
+    th, td {
+      border: 1px solid #ddd;
+      padding: 8px;
+      text-align: center;
+    }
+    th {
+      background: #007bff;
+      color: white;
+    }
+  </style>
 
-    // --- CONFIGURAÇÃO DO FIREBASE ---
+  <script type="module">
+    // ---------------- FIREBASE IMPORTS ----------------
+    import { initializeApp } from "firebase/app";
+    import { getAnalytics } from "firebase/analytics";
+   
+    // ---------------- CONFIGURAÇÃO DO SEU PROJETO ----------------
     const firebaseConfig = {
       apiKey: "AIzaSyCmZBxRVcmTPJFLdWWcNd07LZPJYZnR5N0",
       authDomain: "portaria-e22ae.firebaseapp.com",
       projectId: "portaria-e22ae",
-      storageBucket: "portaria-e22ae.appspot.com", // ✅ corrigido
+      storageBucket: "portaria-e22ae.firebasestorage.app",
       messagingSenderId: "663485115589",
       appId: "1:663485115589:web:4b2f860ede7f0f7b5854ac",
       measurementId: "G-QEGQN6CTBB"
     };
 
-    // Inicializa Firebase e Firestore
+    // ---------------- INICIALIZA O FIREBASE ----------------
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
 
-    // --- FUNÇÃO PARA SALVAR NOVO REGISTRO ---
+    // ---------------- REGISTRAR ENTRADA ----------------
     async function registrarEntrada() {
-      const nome = document.getElementById('nome').value;
-      const documento = document.getElementById('documento').value;
-      const veiculo = document.getElementById('veiculo').value;
-      const destino = document.getElementById('destino').value;
-      const motivo = document.getElementById('motivo').value;
+      const nome = document.getElementById('nome').value.trim();
+      const documento = document.getElementById('documento').value.trim();
+      const veiculo = document.getElementById('veiculo').value.trim();
+      const destino = document.getElementById('destino').value.trim();
+      const motivo = document.getElementById('motivo').value.trim();
 
       if (!nome || !documento) {
-        alert("Preencha pelo menos nome e documento!");
+        alert("Preencha pelo menos o nome e o documento!");
         return;
       }
 
@@ -50,19 +100,15 @@
           status: "Entrada"
         });
         alert("✅ Entrada registrada com sucesso!");
+        limparCampos();
         carregarHistorico();
-        document.getElementById('nome').value = '';
-        document.getElementById('documento').value = '';
-        document.getElementById('veiculo').value = '';
-        document.getElementById('destino').value = '';
-        document.getElementById('motivo').value = '';
       } catch (error) {
-        console.error("❌ Erro ao salvar:", error);
-        alert("Erro ao salvar no banco. Veja o console para detalhes.");
+        alert("❌ Erro ao salvar: " + error.message);
+        console.error(error);
       }
     }
 
-    // --- FUNÇÃO PARA REGISTRAR SAÍDA ---
+    // ---------------- REGISTRAR SAÍDA ----------------
     async function registrarSaida(id) {
       try {
         const registroRef = doc(db, "registros_portaria", id);
@@ -70,58 +116,73 @@
           horarioSaida: serverTimestamp(),
           status: "Saída"
         });
-        alert("✅ Saída registrada!");
+        alert("🚪 Saída registrada com sucesso!");
         carregarHistorico();
       } catch (error) {
-        console.error("Erro ao atualizar saída:", error);
+        alert("❌ Erro ao registrar saída: " + error.message);
+        console.error(error);
       }
     }
 
-    // --- FUNÇÃO PARA CARREGAR HISTÓRICO ---
+    // ---------------- CARREGAR HISTÓRICO ----------------
     async function carregarHistorico() {
-      const tabela = document.getElementById('tabelaHistorico');
+      const tabela = document.getElementById("tabelaHistorico");
       tabela.innerHTML = "";
 
-      const querySnapshot = await getDocs(collection(db, "registros_portaria"));
-      querySnapshot.forEach((docSnap) => {
-        const data = docSnap.data();
-        const tr = document.createElement("tr");
-        tr.innerHTML = `
-          <td>${data.nome}</td>
-          <td>${data.documento}</td>
-          <td>${data.veiculo || '-'}</td>
-          <td>${data.destino || '-'}</td>
-          <td>${data.motivo || '-'}</td>
-          <td>${data.status}</td>
-          <td>${data.horarioEntrada ? new Date(data.horarioEntrada.seconds * 1000).toLocaleString() : '-'}</td>
-          <td>${data.horarioSaida ? new Date(data.horarioSaida.seconds * 1000).toLocaleString() : '-'}</td>
-          <td>
-            ${data.status === "Entrada" ? `<button onclick="registrarSaida('${docSnap.id}')">Registrar Saída</button>` : "-"}
-          </td>
-        `;
-        tabela.appendChild(tr);
-      });
+      try {
+        const querySnapshot = await getDocs(collection(db, "registros_portaria"));
+        querySnapshot.forEach((docSnap) => {
+          const data = docSnap.data();
+          const linha = document.createElement("tr");
+
+          linha.innerHTML = `
+            <td>${data.nome || "-"}</td>
+            <td>${data.documento || "-"}</td>
+            <td>${data.veiculo || "-"}</td>
+            <td>${data.destino || "-"}</td>
+            <td>${data.motivo || "-"}</td>
+            <td>${data.status || "-"}</td>
+            <td>${data.horarioEntrada ? new Date(data.horarioEntrada.seconds * 1000).toLocaleString() : "-"}</td>
+            <td>${data.horarioSaida ? new Date(data.horarioSaida.seconds * 1000).toLocaleString() : "-"}</td>
+            <td>
+              ${data.status === "Entrada"
+                ? `<button onclick="registrarSaida('${docSnap.id}')">Registrar Saída</button>`
+                : "-"}
+            </td>
+          `;
+
+          tabela.appendChild(linha);
+        });
+      } catch (error) {
+        console.error("Erro ao carregar histórico:", error);
+      }
     }
 
-    // Torna funções acessíveis no escopo global
+    function limparCampos() {
+      document.querySelectorAll("input").forEach(i => i.value = "");
+    }
+
+    // ---------------- INICIALIZA ----------------
     window.onload = carregarHistorico;
     window.registrarEntrada = registrarEntrada;
     window.registrarSaida = registrarSaida;
   </script>
 </head>
+
 <body>
-  <h2>📋 Controle de Portaria</h2>
+  <h2>📋 Sistema de Controle de Portaria</h2>
+
   <form onsubmit="event.preventDefault(); registrarEntrada();">
-    <input id="nome" placeholder="Nome" required>
-    <input id="documento" placeholder="Documento" required>
-    <input id="veiculo" placeholder="Veículo">
-    <input id="destino" placeholder="Destino">
-    <input id="motivo" placeholder="Motivo">
+    <input id="nome" placeholder="Nome do Visitante" required />
+    <input id="documento" placeholder="Documento (RG/CPF)" required />
+    <input id="veiculo" placeholder="Veículo / Placa" />
+    <input id="destino" placeholder="Destino / Setor" />
+    <input id="motivo" placeholder="Motivo da Visita" />
     <button type="submit">Registrar Entrada</button>
   </form>
 
   <h3>📜 Histórico de Entradas e Saídas</h3>
-  <table border="1" cellpadding="5">
+  <table>
     <thead>
       <tr>
         <th>Nome</th>
@@ -132,7 +193,7 @@
         <th>Status</th>
         <th>Entrada</th>
         <th>Saída</th>
-        <th>Ações</th>
+        <th>Ação</th>
       </tr>
     </thead>
     <tbody id="tabelaHistorico"></tbody>
