@@ -1,66 +1,51 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Controle de Portaria</title>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Debug - Controle de Portaria (Firestore)</title>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      background-color: #f3f4f6;
-      margin: 40px;
-    }
-    h2 {
-      text-align: center;
-      color: #222;
-    }
-    form {
-      background: #fff;
-      padding: 20px;
-      border-radius: 8px;
-      box-shadow: 0 0 6px #ccc;
-      margin-bottom: 20px;
-      max-width: 600px;
-      margin-inline: auto;
-    }
-    input, button {
-      padding: 8px;
-      margin: 6px 0;
-      width: 100%;
-      border-radius: 6px;
-      border: 1px solid #ccc;
-    }
-    button {
-      background: #007bff;
-      color: white;
-      border: none;
-      cursor: pointer;
-    }
-    button:hover {
-      background: #0056b3;
-    }
-    table {
-      border-collapse: collapse;
-      width: 100%;
-      background: #fff;
-    }
-    th, td {
-      border: 1px solid #ddd;
-      padding: 8px;
-      text-align: center;
-    }
-    th {
-      background: #007bff;
-      color: white;
-    }
+    body{font-family:Arial,Helvetica,sans-serif;background:#f4f6f8;padding:20px}
+    .card{background:#fff;padding:16px;border-radius:8px;box-shadow:0 6px 20px rgba(0,0,0,0.06);max-width:900px;margin:12px auto}
+    input,button{padding:8px;border-radius:6px;border:1px solid #cbd5e1}
+    button{cursor:pointer}
+    #status{margin-top:10px;padding:8px;border-radius:6px;background:#f8fafc;color:#0f172a}
+    .error{background:#fff1f2;color:#991b1b;border:1px solid #fecaca}
+    .ok{background:#ecfdf5;color:#064e3b;border:1px solid #bbf7d0}
+    .log{font-family:monospace;white-space:pre-wrap;max-height:220px;overflow:auto;padding:8px;background:#0f172a;color:#e6eef8;border-radius:6px}
   </style>
+</head>
+<body>
+  <div class="card">
+    <h2>Controle de Portaria — Debug</h2>
+    <p>Use este arquivo para testar gravação e ver mensagens de erro diretamente.</p>
+
+    <form id="form" onsubmit="event.preventDefault(); registrarEntrada();">
+      <input id="nome" placeholder="Nome do visitante" required style="width:48%;margin-right:4%"/>
+      <input id="documento" placeholder="Documento (RG/CPF)" required style="width:48%"/><br/><br/>
+      <input id="veiculo" placeholder="Veículo / Placa" style="width:32%;margin-right:2%"/>
+      <input id="destino" placeholder="Destino" style="width:32%;margin-right:2%"/>
+      <input id="motivo" placeholder="Motivo" style="width:32%"/><br/><br/>
+      <button id="btnEntrar" type="submit">Registrar Entrada</button>
+      <button id="btnTest" type="button">Testar JS</button>
+    </form>
+
+    <div id="status" class="ok">Status: aguardando ação...</div>
+
+    <h4>Console (logs do script)</h4>
+    <div id="consoleLog" class="log"></div>
+  </div>
 
   <script type="module">
-    // ---------------- FIREBASE IMPORTS ----------------
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-app.js";
-    import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-analytics.js";
-   
-    // ---------------- CONFIGURAÇÃO DO SEU PROJETO ----------------
+    // ---------------- IMPORTS FIREBASE ----------------
+    // Import the functions you need from the SDKs you need
+    import { initializeApp } from "firebase/app";
+    import { getAnalytics } from "firebase/analytics";
+    // TODO: Add SDKs for Firebase products that you want to use
+    // https://firebase.google.com/docs/web/setup#available-libraries
+
+    // Your web app's Firebase configuration
+    // For Firebase JS SDK v7.20.0 and later, measurementId is optional
     const firebaseConfig = {
       apiKey: "AIzaSyCmZBxRVcmTPJFLdWWcNd07LZPJYZnR5N0",
       authDomain: "portaria-e22ae.firebaseapp.com",
@@ -71,132 +56,113 @@
       measurementId: "G-QEGQN6CTBB"
     };
 
-    // ---------------- INICIALIZA O FIREBASE ----------------
+    // Initialize Firebase
     const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
+    const analytics = getAnalytics(app);
+  
+    // -------------------------------------------------
 
-    // ---------------- REGISTRAR ENTRADA ----------------
-    async function registrarEntrada() {
-      const nome = document.getElementById('nome').value.trim();
-      const documento = document.getElementById('documento').value.trim();
-      const veiculo = document.getElementById('veiculo').value.trim();
-      const destino = document.getElementById('destino').value.trim();
-      const motivo = document.getElementById('motivo').value.trim();
+    // UI helpers
+    const statusEl = document.getElementById('status')
+    const logEl = document.getElementById('consoleLog')
+    const btnEntrar = document.getElementById('btnEntrar')
+    const btnTest = document.getElementById('btnTest')
 
-      if (!nome || !documento) {
-        alert("Preencha pelo menos o nome e o documento!");
-        return;
+    function log(msg){
+      const ts = new Date().toLocaleTimeString()
+      logEl.textContent = `[${ts}] ${msg}\n` + logEl.textContent
+      console.log(msg)
+    }
+    function setStatus(msg, type='ok'){
+      statusEl.textContent = 'Status: ' + msg
+      statusEl.className = type === 'error' ? 'error' : 'ok'
+    }
+
+    // quick checks
+    if(!firebaseConfig || !firebaseConfig.projectId || firebaseConfig.projectId === 'SEU_PROJETO'){
+      setStatus('Erro: firebaseConfig não preenchido ou contém placeholders. Cole seu firebaseConfig.', 'error')
+      log('firebaseConfig ausente ou com placeholders. Pare e insira as credenciais reais.')
+      // Still continue so user can see JS loaded
+    } else {
+      log('firebaseConfig detectado: projectId=' + firebaseConfig.projectId)
+    }
+
+    let db = null
+    try {
+      const app = initializeApp(firebaseConfig)
+      db = getFirestore(app)
+      log('Firebase inicializado com sucesso.')
+      setStatus('Firebase inicializado. Pronto para gravação.')
+    } catch(err) {
+      setStatus('Erro ao inicializar Firebase: ' + (err.message || err), 'error')
+      log('Erro inicializando Firebase: ' + err?.message)
+      // stop here — registrarEntrada will still try and show useful error
+    }
+
+    // function to save entry
+    async function registrarEntrada(){
+      log('registrarEntrada() chamada.')
+      setStatus('Gravando...', 'ok')
+      btnEntrar.disabled = true
+
+      const nome = document.getElementById('nome').value.trim()
+      const documento = document.getElementById('documento').value.trim()
+      const veiculo = document.getElementById('veiculo').value.trim()
+      const destino = document.getElementById('destino').value.trim()
+      const motivo = document.getElementById('motivo').value.trim()
+
+      if(!nome || !documento){
+        setStatus('Erro: nome e documento são obrigatórios.', 'error')
+        log('Validação: campos obrigatórios ausentes.')
+        btnEntrar.disabled = false
+        return
       }
 
-      try {
-        await addDoc(collection(db, "registros_portaria"), {
-          nome,
-          documento,
-          veiculo,
-          destino,
-          motivo,
-          horarioEntrada: serverTimestamp(),
-          horarioSaida: null,
-          status: "Entrada"
-        });
-        alert("✅ Entrada registrada com sucesso!");
-        limparCampos();
-        carregarHistorico();
-      } catch (error) {
-        alert("❌ Erro ao salvar: " + error.message);
-        console.error(error);
+      if(!db){
+        setStatus('Erro: Firestore não inicializado corretamente. Verifique firebaseConfig e console.', 'error')
+        log('Abortando gravação: db é null.')
+        btnEntrar.disabled = false
+        return
+      }
+
+      try{
+        // mostra o payload nos logs antes de gravar
+        const payload = { nome, documento, veiculo: veiculo||null, destino: destino||null, motivo: motivo||null, horarioEntrada: serverTimestamp(), horarioSaida: null, status: 'Entrada' }
+        log('Payload a ser gravado: ' + JSON.stringify({ nome, documento, veiculo, destino, motivo }))
+        const ref = await addDoc(collection(db, 'registros_portaria'), payload)
+        log('Documento salvo com id: ' + ref.id)
+        setStatus('✅ Gravado com sucesso (id: ' + ref.id + ')')
+        // limpar campos
+        document.getElementById('form').reset()
+      } catch (err) {
+        // erros comuns: permissões, invalid-api-key, network
+        const em = err?.message || String(err)
+        log('Erro ao gravar: ' + em)
+        setStatus('Erro ao gravar: ' + em, 'error')
+      } finally {
+        btnEntrar.disabled = false
       }
     }
 
-    // ---------------- REGISTRAR SAÍDA ----------------
-    async function registrarSaida(id) {
-      try {
-        const registroRef = doc(db, "registros_portaria", id);
-        await updateDoc(registroRef, {
-          horarioSaida: serverTimestamp(),
-          status: "Saída"
-        });
-        alert("🚪 Saída registrada com sucesso!");
-        carregarHistorico();
-      } catch (error) {
-        alert("❌ Erro ao registrar saída: " + error.message);
-        console.error(error);
-      }
-    }
+    // expose for inline form attribute
+    window.registrarEntrada = registrarEntrada
 
-    // ---------------- CARREGAR HISTÓRICO ----------------
-    async function carregarHistorico() {
-      const tabela = document.getElementById("tabelaHistorico");
-      tabela.innerHTML = "";
+    // test button: verifica se a função está ligada
+    btnTest.addEventListener('click', () => {
+      log('Botão Testar JS clicado — verificação básica.')
+      setStatus('Teste: JS carregado e respondendo.')
+    })
 
-      try {
-        const querySnapshot = await getDocs(collection(db, "registros_portaria"));
-        querySnapshot.forEach((docSnap) => {
-          const data = docSnap.data();
-          const linha = document.createElement("tr");
+    // também captura erros globais para mostrar no painel
+    window.addEventListener('error', (e) => {
+      log('Erro global detectado: ' + (e.error?.message || e.message || e))
+      setStatus('Erro runtime: ' + (e.error?.message || e.message || e), 'error')
+    })
 
-          linha.innerHTML = `
-            <td>${data.nome || "-"}</td>
-            <td>${data.documento || "-"}</td>
-            <td>${data.veiculo || "-"}</td>
-            <td>${data.destino || "-"}</td>
-            <td>${data.motivo || "-"}</td>
-            <td>${data.status || "-"}</td>
-            <td>${data.horarioEntrada ? new Date(data.horarioEntrada.seconds * 1000).toLocaleString() : "-"}</td>
-            <td>${data.horarioSaida ? new Date(data.horarioSaida.seconds * 1000).toLocaleString() : "-"}</td>
-            <td>
-              ${data.status === "Entrada"
-                ? `<button onclick="registrarSaida('${docSnap.id}')">Registrar Saída</button>`
-                : "-"}
-            </td>
-          `;
-
-          tabela.appendChild(linha);
-        });
-      } catch (error) {
-        console.error("Erro ao carregar histórico:", error);
-      }
-    }
-
-    function limparCampos() {
-      document.querySelectorAll("input").forEach(i => i.value = "");
-    }
-
-    // ---------------- INICIALIZA ----------------
-    window.onload = carregarHistorico;
-    window.registrarEntrada = registrarEntrada;
-    window.registrarSaida = registrarSaida;
+    window.addEventListener('unhandledrejection', (ev) => {
+      log('UnhandledRejection: ' + (ev.reason?.message || ev.reason || JSON.stringify(ev.reason)))
+      setStatus('Erro promise: ' + (ev.reason?.message || ev.reason || ''), 'error')
+    })
   </script>
-</head>
-
-<body>
-  <h2>📋 Sistema de Controle de Portaria</h2>
-
-  <form onsubmit="event.preventDefault(); registrarEntrada();">
-    <input id="nome" placeholder="Nome do Visitante" required />
-    <input id="documento" placeholder="Documento (RG/CPF)" required />
-    <input id="veiculo" placeholder="Veículo / Placa" />
-    <input id="destino" placeholder="Destino / Setor" />
-    <input id="motivo" placeholder="Motivo da Visita" />
-    <button type="submit">Registrar Entrada</button>
-  </form>
-
-  <h3>📜 Histórico de Entradas e Saídas</h3>
-  <table>
-    <thead>
-      <tr>
-        <th>Nome</th>
-        <th>Documento</th>
-        <th>Veículo</th>
-        <th>Destino</th>
-        <th>Motivo</th>
-        <th>Status</th>
-        <th>Entrada</th>
-        <th>Saída</th>
-        <th>Ação</th>
-      </tr>
-    </thead>
-    <tbody id="tabelaHistorico"></tbody>
-  </table>
 </body>
 </html>
