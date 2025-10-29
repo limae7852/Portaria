@@ -60,7 +60,11 @@
         <button class="btn btn-primary" id="btnCheckin">Registrar Entrada</button>
         <button class="btn btn-ghost" id="btnClear">Limpar</button>
         <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
-          <select id="filterStatus"><option value="all">Todos</option><option value="in">Entrados</option><option value="out">Saíram</option></select>
+          <select id="filterStatus">
+            <option value="all">Todos</option>
+            <option value="in">Entrados</option>
+            <option value="out">Saíram</option>
+          </select>
           <input id="searchInput" placeholder="Pesquisar por nome, doc ou veículo" style="width:260px" />
         </div>
       </div>
@@ -72,39 +76,47 @@
         <div class="small">Lista em tempo real (Firestore)</div>
         <div style="margin-left:auto;display:flex;gap:8px">
           <button class="btn btn-ghost" id="btnExport">Exportar CSV</button>
-          <button class="btn btn-ghost" id="btnClearAll">Limpar tudo (somente dev)</button>
+          <button class="btn btn-ghost" id="btnClearAll">Limpar tudo (dev)</button>
         </div>
       </div>
       <div style="margin-top:12px;overflow:auto;max-height:520px">
         <table id="tableList">
           <thead>
-            <tr><th>Nome</th><th>Doc</th><th>Veículo</th><th>Destino</th><th>Entrada</th><th>Saída</th><th>Status</th><th>Ações</th></tr>
+            <tr>
+              <th>Nome</th>
+              <th>Doc</th>
+              <th>Veículo</th>
+              <th>Destino</th>
+              <th>Entrada</th>
+              <th>Saída</th>
+              <th>Status</th>
+              <th>Ações</th>
+            </tr>
           </thead>
           <tbody id="tbody"></tbody>
         </table>
       </div>
     </div>
-
-    <div class="card small">
-      <strong>Como configurar</strong>
-      <ol>
-        <li>Crie um projeto no <em>Firebase Console</em> (https://console.firebase.google.com).</li>
-        <li>Ative o Firestore (modo de produção ou teste) em <em>Cloud Firestore</em>.</li>
-        <li>Copie as credenciais do seu app (objeto <code>firebaseConfig</code>).</li>
-        <li>Cole as credenciais no arquivo HTML dentro do bloco <code>/* --- CONFIGURE AQUI --- */</code>.</li>
-        <li>Sirva o arquivo localmente (ex: Live Server) ou publique em um host estático.</li>
-      </ol>
-      <div style="margin-top:8px;color:#6b7280">Observação: este exemplo usa Firestore. Se preferir Realtime Database ou Firebase Auth, eu adapto.</div>
-    </div>
-
   </div>
 
   <script type="module">
     // --- SDKs do Firebase (modular) via CDN ---
-    import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js'
-    import { getFirestore, collection, addDoc, getDocs, onSnapshot, query, orderBy, serverTimestamp, doc, updateDoc, deleteDoc } from 'https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js'
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
+    import {
+      getFirestore,
+      collection,
+      addDoc,
+      onSnapshot,
+      query,
+      orderBy,
+      serverTimestamp,
+      doc,
+      updateDoc,
+      deleteDoc,
+      getDocs
+    } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
 
-    // --- CONFIGURE AQUI: cole o objeto firebaseConfig do seu projeto ---
+    // --- CONFIGURE AQUI: Substitua pelos dados do seu projeto Firebase ---
     const firebaseConfig = {
       apiKey: "AIzaSyCmZBxRVcmTPJFLdWWcNd07LZPJYZnR5N0",
       authDomain: "portaria-e22ae.firebaseapp.com",
@@ -114,185 +126,133 @@
       appId: "1:663485115589:web:4b2f860ede7f0f7b5854ac",
       measurementId: "G-QEGQN6CTBB"
     };
-    // ---------------------------------------------------------------
+    // ---------------------------------------------------------------------
 
     const app = initializeApp(firebaseConfig);
-    const analytics = getAnalytics(app);
+    const db = getFirestore(app);
+    const registrosCol = collection(db, "registros_portaria");
 
-    // referências
-    const registrosCol = collection(db, 'registros_portaria')
+    const visitorName = document.getElementById("visitorName");
+    const visitorDoc = document.getElementById("visitorDoc");
+    const vehicle = document.getElementById("vehicle");
+    const contact = document.getElementById("contact");
+    const reason = document.getElementById("reason");
+    const tbody = document.getElementById("tbody");
+    const btnCheckin = document.getElementById("btnCheckin");
+    const btnClear = document.getElementById("btnClear");
+    const filterStatus = document.getElementById("filterStatus");
+    const searchInput = document.getElementById("searchInput");
+    const btnExport = document.getElementById("btnExport");
+    const btnClearAll = document.getElementById("btnClearAll");
 
-    // elementos
-    const visitorName = document.getElementById('visitorName')
-    const visitorDoc = document.getElementById('visitorDoc')
-    const vehicle = document.getElementById('vehicle')
-    const contact = document.getElementById('contact')
-    const reason = document.getElementById('reason')
-    const btnCheckin = document.getElementById('btnCheckin')
-    const btnClear = document.getElementById('btnClear')
-    const tbody = document.getElementById('tbody')
-    const filterStatus = document.getElementById('filterStatus')
-    const searchInput = document.getElementById('searchInput')
-    const btnExport = document.getElementById('btnExport')
-    const btnClearAll = document.getElementById('btnClearAll')
+    // Registrar entrada
+    btnCheckin.addEventListener("click", async () => {
+      const nome = visitorName.value.trim();
+      if (!nome) return alert("Informe o nome do visitante!");
 
-    // adicionar registro
-    btnCheckin.addEventListener('click', async () => {
-      const nome = visitorName.value.trim()
-      if(!nome){alert('Preencha o nome.'); visitorName.focus(); return}
-      try{
-        await addDoc(registrosCol, {
-          nome,
-          doc: visitorDoc.value.trim()||null,
-          vehicle: vehicle.value.trim()||null,
-          destino: contact.value.trim()||null,
-          motivo: reason.value.trim()||null,
-          status: 'in',
-          checkin: serverTimestamp(),
-          checkout: null
-        })
-        clearForm()
-      }catch(e){console.error(e); alert('Erro ao salvar: '+e.message)}
-    })
+      await addDoc(registrosCol, {
+        nome,
+        doc: visitorDoc.value.trim() || "",
+        vehicle: vehicle.value.trim() || "",
+        destino: contact.value.trim() || "",
+        motivo: reason.value.trim() || "",
+        status: "in",
+        checkin: serverTimestamp(),
+        checkout: null
+      });
 
-    btnClear.addEventListener('click', clearForm)
-    function clearForm(){visitorName.value='';visitorDoc.value='';vehicle.value='';contact.value='';reason.value=''}
+      clearForm();
+    });
 
-    // render itens
-    function renderRow(id, data){
-      const tr = document.createElement('tr')
-      tr.dataset.id = id
-      const formatDate = (t)=>{if(!t) return '';
-        try{ const d = t.toDate ? t.toDate() : new Date(t); return d.toLocaleString(); }catch(e){return String(t)} }
+    btnClear.addEventListener("click", clearForm);
+    function clearForm() {
+      visitorName.value = "";
+      visitorDoc.value = "";
+      vehicle.value = "";
+      contact.value = "";
+      reason.value = "";
+    }
 
+    function formatDate(t) {
+      if (!t) return "";
+      try {
+        const d = t.toDate ? t.toDate() : new Date(t);
+        return d.toLocaleString();
+      } catch (e) {
+        return "";
+      }
+    }
+
+    function renderRow(id, data) {
+      const tr = document.createElement("tr");
       tr.innerHTML = `
-        <td>${escapeHtml(data.nome||'')}</td>
-        <td>${escapeHtml(data.doc||'')}</td>
-        <td>${escapeHtml(data.vehicle||'')}</td>
-        <td>${escapeHtml(data.destino||'')}</td>
+        <td>${data.nome || ""}</td>
+        <td>${data.doc || ""}</td>
+        <td>${data.vehicle || ""}</td>
+        <td>${data.destino || ""}</td>
         <td>${formatDate(data.checkin)}</td>
         <td>${formatDate(data.checkout)}</td>
-        <td><span class="status-badge ${data.status==='in'? 'status-in':'status-out'}">${data.status==='in'?'Entrado':'Saiu'}</span></td>
-        <td class="actions">
-          ${data.status==='in' ? '<button class="btn btn-primary btn-checkout">Registrar Saída</button>' : ''}
-          <button class="btn btn-ghost btn-delete">Excluir</button>
+        <td><span class="status-badge ${data.status === "in" ? "status-in" : "status-out"}">
+          ${data.status === "in" ? "Entrado" : "Saiu"}</span>
         </td>
-      `
+        <td class="actions">
+          ${data.status === "in" ? `<button class="btn btn-primary btn-checkout">Registrar Saída</button>` : ""}
+          <button class="btn btn-ghost btn-delete">Excluir</button>
+        </td>`;
 
-      // botão checkout
-      tr.querySelectorAll('.btn-checkout').forEach(btn=>{
-        btn.addEventListener('click', async ()=>{
-          const r = confirm('Registrar saída para ' + (data.nome||'visitante') + '?')
-          if(!r) return
-          try{
-            const docRef = doc(db, 'registros_portaria', id)
-            await updateDoc(docRef, { status: 'out', checkout: serverTimestamp() })
-          }catch(e){console.error(e); alert('Erro: '+e.message)}
-        })
-      })
-
-      // excluir
-      tr.querySelectorAll('.btn-delete').forEach(btn=>{
-        btn.addEventListener('click', async ()=>{
-          if(!confirm('Excluir registro?')) return
-          try{ await deleteDoc(doc(db,'registros_portaria', id)) }catch(e){console.error(e);alert('Erro: '+e.message)}
-        })
-      })
-
-      return tr
-    }
-
-    function escapeHtml(s){ return String(s).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;') }
-
-    // snapshot em tempo real ordenado por checkin desc
-    const q = query(registrosCol, orderBy('checkin','desc'))
-    onSnapshot(q, snapshot=>{
-      // reconstruir lista (simples e robusto)
-      const docs = []
-      snapshot.forEach(d=>docs.push({id:d.id,data:d.data()}))
-      renderList(docs)
-    })
-
-    function renderList(docs){
-      tbody.innerHTML = ''
-      const filter = filterStatus.value
-      const term = searchInput.value.trim().toLowerCase()
-      docs.forEach(item=>{
-        const data = item.data
-        // filtros
-        if(filter!=='all' && data.status!==filter) return
-        if(term){
-          const hay = [data.nome,data.doc,data.vehicle,data.destino,data.motivo].filter(Boolean).join(' ').toLowerCase()
-          if(!hay.includes(term)) return
+      tr.querySelector(".btn-delete").addEventListener("click", async () => {
+        if (confirm("Deseja excluir este registro?")) {
+          await deleteDoc(doc(db, "registros_portaria", id));
         }
-        tbody.appendChild(renderRow(item.id, data))
-      })
+      });
+
+      const checkoutBtn = tr.querySelector(".btn-checkout");
+      if (checkoutBtn) {
+        checkoutBtn.addEventListener("click", async () => {
+          if (confirm("Registrar saída deste visitante?")) {
+            await updateDoc(doc(db, "registros_portaria", id), {
+              status: "out",
+              checkout: serverTimestamp()
+            });
+          }
+        });
+      }
+
+      return tr;
     }
 
-    filterStatus.addEventListener('change', ()=>{ /* snapshot já atualiza, apenas re-render */})
-    searchInput.addEventListener('input', ()=>{/* re-query happens via local docs from last snapshot; we simulate by triggering a shallow refresh */})
+    // Atualização em tempo real
+    const q = query(registrosCol, orderBy("checkin", "desc"));
+    onSnapshot(q, (snapshot) => {
+      tbody.innerHTML = "";
+      snapshot.forEach((docSnap) => {
+        tbody.appendChild(renderRow(docSnap.id, docSnap.data()));
+      });
+    });
 
-    // export CSV
-    btnExport.addEventListener('click', async ()=>{
-      const snap = await getDocs(query(registrosCol, orderBy('checkin','desc')))
-      const rows = []
-      snap.forEach(d=>{
-        const data = d.data()
-        rows.push({id:d.id, nome:data.nome, doc:data.doc||'', vehicle:data.vehicle||'', destino:data.destino||'', motivo:data.motivo||'', status:data.status||'', checkin:data.checkin? (data.checkin.toDate ? data.checkin.toDate().toISOString() : data.checkin) : '', checkout:data.checkout? (data.checkout.toDate ? data.checkout.toDate().toISOString() : data.checkout) : ''})
-      })
-      if(rows.length===0){alert('Sem dados para exportar'); return}
-      const csv = toCSV(rows)
-      const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'})
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url; a.download = `registros_portaria_${new Date().toISOString().slice(0,10)}.csv`; a.click(); URL.revokeObjectURL(url)
-    })
+    // Exportar CSV
+    btnExport.addEventListener("click", async () => {
+      const snap = await getDocs(q);
+      let csv = "nome,doc,veiculo,destino,status,checkin,checkout\n";
+      snap.forEach((d) => {
+        const data = d.data();
+        csv += `${data.nome || ""},${data.doc || ""},${data.vehicle || ""},${data.destino || ""},${data.status || ""},${formatDate(data.checkin)},${formatDate(data.checkout)}\n`;
+      });
+      const blob = new Blob([csv], { type: "text/csv" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "registros_portaria.csv";
+      a.click();
+    });
 
-    function toCSV(arr){
-      const keys = Object.keys(arr[0])
-      const esc = v => '"' + String(v||'').replace(/"/g,'""') + '"'
-      const lines = [keys.map(esc).join(',')]
-      arr.forEach(r=>lines.push(keys.map(k=>esc(r[k])).join(',')))
-      return lines.join('\n')
-    }
-
-    // botão limpar todos (DEVELOPMENT) - cuidado!
-    btnClearAll.addEventListener('click', async ()=>{
-      if(!confirm('Remover todos os registros? Ação irreversível.')) return
-      try{
-        const snap = await getDocs(registrosCol)
-        const promises = []
-        snap.forEach(d=>promises.push(deleteDoc(doc(db,'registros_portaria',d.id))))
-        await Promise.all(promises)
-        alert('Removidos.')
-      }catch(e){console.error(e);alert('Erro: '+e.message)}
-    })
-
-    // pequenas melhorias: re-render local ao digitar (não consulta o servidor)
-    let lastDocsCache = []
-    onSnapshot(q, snapshot=>{
-      const docs = []
-      snapshot.forEach(d=>docs.push({id:d.id,data:d.data()}))
-      lastDocsCache = docs
-      applyLocalFilters()
-    })
-    function applyLocalFilters(){
-      const filter = filterStatus.value
-      const term = searchInput.value.trim().toLowerCase()
-      tbody.innerHTML = ''
-      lastDocsCache.forEach(item=>{
-        const data = item.data
-        if(filter!=='all' && data.status!==filter) return
-        if(term){
-          const hay = [data.nome,data.doc,data.vehicle,data.destino,data.motivo].filter(Boolean).join(' ').toLowerCase()
-          if(!hay.includes(term)) return
-        }
-        tbody.appendChild(renderRow(item.id, data))
-      })
-    }
-    filterStatus.addEventListener('change', applyLocalFilters)
-    searchInput.addEventListener('input', applyLocalFilters)
-
+    // Limpar todos os registros (modo desenvolvedor)
+    btnClearAll.addEventListener("click", async () => {
+      if (confirm("Remover todos os registros?")) {
+        const snap = await getDocs(registrosCol);
+        snap.forEach((d) => deleteDoc(doc(db, "registros_portaria", d.id)));
+        alert("Registros apagados!");
+      }
+    });
   </script>
 </body>
 </html>
