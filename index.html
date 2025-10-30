@@ -8,12 +8,15 @@
   <style>
     body{background:#f8fafc;padding:20px}
     .log{font-family:monospace;white-space:pre-wrap;max-height:200px;overflow:auto;background:#0f172a;color:#e6eef8;padding:8px;border-radius:6px}
+    table{font-size:0.9rem}
+    .table thead th{background:#e2e8f0}
   </style>
 </head>
 <body>
 <div class="container">
   <h2 class="mb-3 text-center">📋 Controle de Portaria (Firestore)</h2>
 
+  <!-- Formulário -->
   <form id="formEntrada" class="card p-3 mb-3">
     <div class="row g-2">
       <div class="col-md-4"><input id="nome" class="form-control" placeholder="Nome" required></div>
@@ -25,13 +28,53 @@
     </div>
   </form>
 
+  <!-- Filtros -->
+  <div class="card p-3 mb-3">
+    <h5>🔍 Filtros</h5>
+    <div class="row g-2 align-items-end">
+      <div class="col-md-3">
+        <label class="form-label">Data</label>
+        <input type="date" id="filtroData" class="form-control">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">Status</label>
+        <select id="filtroStatus" class="form-select">
+          <option value="">Todos</option>
+          <option value="Entrada">Entrada</option>
+          <option value="Saída">Saída</option>
+        </select>
+      </div>
+      <div class="col-md-3">
+        <button id="btnFiltrar" class="btn btn-primary">Aplicar Filtros</button>
+        <button id="btnLimpar" class="btn btn-secondary">Limpar</button>
+      </div>
+    </div>
+  </div>
+
   <div id="status" class="alert alert-secondary">Status: aguardando...</div>
+
+  <!-- Tabela -->
+  <div class="table-responsive mb-3">
+    <table class="table table-bordered table-striped" id="tabelaRegistros">
+      <thead>
+        <tr>
+          <th>Nome</th>
+          <th>Documento</th>
+          <th>Motivo</th>
+          <th>Entrada</th>
+          <th>Saída</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
 
   <h5>Logs</h5>
   <div id="consoleLog" class="log"></div>
 </div>
 
-<!-- 🔥 SDKs compat (sem modules, sem import/export) -->
+<!-- 🔥 SDK compatível (sem import/export) -->
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 
@@ -46,14 +89,14 @@
     appId: "1:663485115589:web:b1c2fa0c96a2664aa88d7d"
   };
 
-  // Inicializa Firebase (modo compat)
+  // Inicializa Firebase
   firebase.initializeApp(firebaseConfig);
   const db = firebase.firestore();
-
   const registrosRef = db.collection("registros_portaria");
+
   const logEl = document.getElementById("consoleLog");
   const statusEl = document.getElementById("status");
-  const form = document.getElementById("formEntrada");
+  const tabelaBody = document.querySelector("#tabelaRegistros tbody");
 
   function log(msg){
     const ts = new Date().toLocaleTimeString();
@@ -66,7 +109,8 @@
     statusEl.textContent = "Status: " + msg;
   }
 
-  form.addEventListener("submit", async (e)=>{
+  // Registrar entrada
+  document.getElementById("formEntrada").addEventListener("submit", async (e)=>{
     e.preventDefault();
     const nome = document.getElementById("nome").value.trim();
     const documento = document.getElementById("documento").value.trim();
@@ -89,18 +133,74 @@
 
     try {
       setStatus("Gravando...", "info");
-      const ref = await registrosRef.add(dados);
-      log("✅ Registro criado com ID: " + ref.id);
+      await registrosRef.add(dados);
+      log("✅ Entrada registrada: " + nome);
       setStatus("Entrada registrada com sucesso!", "success");
-      form.reset();
+      e.target.reset();
     } catch (err) {
       log("❌ Erro ao gravar: " + err.message);
       setStatus("Erro ao gravar: " + err.message, "danger");
     }
   });
 
-  log("Firebase inicializado (modo compat). Pronto para gravar.");
-  setStatus("Pronto. Preencha e registre uma entrada.", "secondary");
+  // Carregar registros
+  let unsubscribe = null;
+
+  function carregarRegistros(filtroData="", filtroStatus="") {
+    if(unsubscribe) unsubscribe();
+
+    let query = registrosRef.orderBy("criadoEm", "desc");
+
+    if(filtroStatus){
+      query = query.where("status", "==", filtroStatus);
+    }
+
+    unsubscribe = query.onSnapshot(snapshot=>{
+      tabelaBody.innerHTML = "";
+
+      snapshot.forEach(doc=>{
+        const dados = doc.data();
+        if(filtroData){
+          const entrada = dados.horarioEntrada ? dados.horarioEntrada.split(" ")[0] : "";
+          if(!entrada.includes(filtroData.split("-").reverse().join("/"))) return;
+        }
+
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${dados.nome||""}</td>
+          <td>${dados.documento||""}</td>
+          <td>${dados.motivo||""}</td>
+          <td>${dados.horarioEntrada||""}</td>
+          <td>${dados.horarioSaida||""}</td>
+          <td>${dados.status||""}</td>
+        `;
+        tabelaBody.appendChild(tr);
+      });
+
+      log("📄 Registros atualizados: " + snapshot.size);
+      setStatus("Tabela atualizada com " + snapshot.size + " registros.", "info");
+    });
+  }
+
+  // Filtros
+  document.getElementById("btnFiltrar").addEventListener("click",(e)=>{
+    e.preventDefault();
+    const data = document.getElementById("filtroData").value;
+    const status = document.getElementById("filtroStatus").value;
+    carregarRegistros(data, status);
+  });
+
+  document.getElementById("btnLimpar").addEventListener("click",(e)=>{
+    e.preventDefault();
+    document.getElementById("filtroData").value = "";
+    document.getElementById("filtroStatus").value = "";
+    carregarRegistros();
+  });
+
+  // Inicialização
+  carregarRegistros();
+  log("🔥 Firebase inicializado e sincronização iniciada.");
+  setStatus("Pronto. Preencha o formulário e clique em 'Registrar Entrada'.", "secondary");
 </script>
 </body>
 </html>
