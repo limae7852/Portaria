@@ -72,37 +72,67 @@ async function registrarSaida(id) {
 }
 
 // ================= FUNÇÃO: LISTAR REGISTROS EM TEMPO REAL =================
+let todosRegistros = [];
+
 function carregarRegistrosTempoReal() {
-  const tabela = document.getElementById("listaRegistros");
   const q = query(registrosRef, orderBy("criadoEm", "desc"));
 
   onSnapshot(q, (snapshot) => {
-    tabela.innerHTML = "";
+    todosRegistros = [];
     snapshot.forEach((docSnap) => {
-      const registro = docSnap.data();
-      const id = docSnap.id;
+      todosRegistros.push({ id: docSnap.id, ...docSnap.data() });
+    });
+    renderizarTabela();
+  });
+}
 
-      const linha = document.createElement("tr");
-      linha.innerHTML = `
-        <td>${registro.nome || ""}</td>
-        <td>${registro.documento || ""}</td>
-        <td>${registro.veiculo || ""}</td>
-        <td>${registro.destino || ""}</td>
-        <td>${registro.motivo || ""}</td>
-        <td>
-          <span class="badge ${registro.status === "Entrada" ? "bg-success" : "bg-secondary"}">
-            ${registro.status}
-          </span>
-        </td>
-        <td>${registro.horarioEntrada || ""}</td>
-        <td>${registro.horarioSaida ? registro.horarioSaida : `
-          <button class="btn btn-warning btn-sm" onclick="registrarSaida('${id}')">
+// ================= FILTROS =================
+let filtroStatus = "Todos";
+let filtroBusca = "";
+
+function renderizarTabela() {
+  const tabela = document.getElementById("listaRegistros");
+  tabela.innerHTML = "";
+
+  const registrosFiltrados = todosRegistros.filter((r) => {
+    const busca = filtroBusca.toLowerCase();
+    const combinaBusca =
+      r.nome?.toLowerCase().includes(busca) ||
+      r.documento?.toLowerCase().includes(busca);
+
+    const combinaStatus =
+      filtroStatus === "Todos" || r.status === filtroStatus;
+
+    return combinaBusca && combinaStatus;
+  });
+
+  if (registrosFiltrados.length === 0) {
+    tabela.innerHTML = `<tr><td colspan="8" class="text-muted">Nenhum registro encontrado</td></tr>`;
+    return;
+  }
+
+  registrosFiltrados.forEach((registro) => {
+    const linha = document.createElement("tr");
+    linha.innerHTML = `
+      <td>${registro.nome || ""}</td>
+      <td>${registro.documento || ""}</td>
+      <td>${registro.veiculo || ""}</td>
+      <td>${registro.destino || ""}</td>
+      <td>${registro.motivo || ""}</td>
+      <td>
+        <span class="badge ${registro.status === "Entrada" ? "bg-success" : "bg-secondary"}">
+          ${registro.status}
+        </span>
+      </td>
+      <td>${registro.horarioEntrada || ""}</td>
+      <td>
+        ${registro.horarioSaida ? registro.horarioSaida :
+          `<button class="btn btn-warning btn-sm" onclick="registrarSaida('${registro.id}')">
             Registrar Saída
           </button>`}
-        </td>
-      `;
-      tabela.appendChild(linha);
-    });
+      </td>
+    `;
+    tabela.appendChild(linha);
   });
 }
 
@@ -117,7 +147,17 @@ function limparCampos() {
 document.getElementById("btnRegistrar").addEventListener("click", registrarEntrada);
 document.getElementById("btnLimpar").addEventListener("click", limparCampos);
 
-// Torna a função global (para ser chamada pelo botão da tabela)
+// Filtros
+document.getElementById("filtroTodos").addEventListener("click", () => { filtroStatus = "Todos"; renderizarTabela(); });
+document.getElementById("filtroEntrada").addEventListener("click", () => { filtroStatus = "Entrada"; renderizarTabela(); });
+document.getElementById("filtroSaida").addEventListener("click", () => { filtroStatus = "Saída"; renderizarTabela(); });
+
+document.getElementById("filtroBusca").addEventListener("input", (e) => {
+  filtroBusca = e.target.value;
+  renderizarTabela();
+});
+
+// Torna função global
 window.registrarSaida = registrarSaida;
 
 // ================= INICIALIZA =================
