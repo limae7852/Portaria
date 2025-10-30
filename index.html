@@ -1,106 +1,169 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="pt-BR">
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>Controle de Portaria - Firestore</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <title>Controle de Portaria (Firestore)</title>
   <style>
-    body{background:#f8fafc;padding:20px}
-    .log{font-family:monospace;white-space:pre-wrap;max-height:200px;overflow:auto;background:#0f172a;color:#e6eef8;padding:8px;border-radius:6px}
+    body{font-family:Arial,Helvetica,sans-serif;background:#f4f6f8;padding:20px}
+    .card{background:#fff;padding:16px;border-radius:8px;box-shadow:0 6px 20px rgba(0,0,0,0.06);max-width:1000px;margin:12px auto}
+    input,button{padding:8px;border-radius:6px;border:1px solid #cbd5e1}
+    button{cursor:pointer}
+    #status{margin-top:10px;padding:8px;border-radius:6px;background:#f8fafc;color:#0f172a}
+    .error{background:#fff1f2;color:#991b1b;border:1px solid #fecaca}
+    .ok{background:#ecfdf5;color:#064e3b;border:1px solid #bbf7d0}
+    table{width:100%;border-collapse:collapse;margin-top:10px;font-size:14px}
+    th,td{border:1px solid #e2e8f0;padding:6px;text-align:left}
+    th{background:#f1f5f9}
+    .saida-btn{background:#dc2626;color:#fff;border:none;padding:4px 8px;border-radius:4px;cursor:pointer}
+    .saida-btn[disabled]{background:#94a3b8;cursor:not-allowed}
   </style>
 </head>
 <body>
-<div class="container">
-  <h2 class="mb-3 text-center">📋 Controle de Portaria (Firestore)</h2>
+  <div class="card">
+    <h2>Controle de Portaria — Firestore</h2>
 
-  <form id="formEntrada" class="card p-3 mb-3">
-    <div class="row g-2">
-      <div class="col-md-4"><input id="nome" class="form-control" placeholder="Nome" required></div>
-      <div class="col-md-4"><input id="documento" class="form-control" placeholder="Documento" required></div>
-      <div class="col-md-4"><input id="motivo" class="form-control" placeholder="Motivo"></div>
-    </div>
-    <div class="text-center mt-3">
-      <button type="submit" class="btn btn-success">Registrar Entrada</button>
-    </div>
-  </form>
+    <form id="form" onsubmit="event.preventDefault(); registrarEntrada();">
+      <input id="nome" placeholder="Nome do visitante" required style="width:48%;margin-right:4%"/>
+      <input id="documento" placeholder="Documento (RG/CPF)" required style="width:48%"/><br/><br/>
+      <input id="veiculo" placeholder="Veículo / Placa" style="width:32%;margin-right:2%"/>
+      <input id="destino" placeholder="Destino" style="width:32%;margin-right:2%"/>
+      <input id="motivo" placeholder="Motivo" style="width:32%"/><br/><br/>
+      <button id="btnEntrar" type="submit">Registrar Entrada</button>
+    </form>
 
-  <div id="status" class="alert alert-secondary">Status: aguardando...</div>
+    <div id="status" class="ok">Status: aguardando ação...</div>
 
-  <h5>Logs</h5>
-  <div id="consoleLog" class="log"></div>
-</div>
+    <h4>Registros Salvos</h4>
+    <table id="tabelaRegistros">
+      <thead>
+        <tr>
+          <th>Nome</th><th>Documento</th><th>Destino</th>
+          <th>Motivo</th><th>Status</th><th>Entrada</th><th>Saída</th><th>Ações</th>
+        </tr>
+      </thead>
+      <tbody id="listaRegistros"></tbody>
+    </table>
+  </div>
 
-<!-- 🔥 SDKs compat (sem modules, sem import/export) -->
-<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+  <script type="module">
+    // ---------------- FIREBASE IMPORTS ----------------
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import {
+      getFirestore, collection, addDoc, updateDoc, doc,
+      serverTimestamp, onSnapshot, query, orderBy
+    } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
-<script>
-  // Config Firebase
-  const firebaseConfig = {
-    apiKey: "AIzaSyCmZBxRVcmTPJFLdWWcNd07LZPJYZnR5N0",
-    authDomain: "portaria-e22ae.firebaseapp.com",
-    projectId: "portaria-e22ae",
-    storageBucket: "portaria-e22ae.firebasestorage.app",
-    messagingSenderId: "663485115589",
-    appId: "1:663485115589:web:b1c2fa0c96a2664aa88d7d"
-  };
-
-  // Inicializa Firebase (modo compat)
-  firebase.initializeApp(firebaseConfig);
-  const db = firebase.firestore();
-
-  const registrosRef = db.collection("registros_portaria");
-  const logEl = document.getElementById("consoleLog");
-  const statusEl = document.getElementById("status");
-  const form = document.getElementById("formEntrada");
-
-  function log(msg){
-    const ts = new Date().toLocaleTimeString();
-    logEl.textContent = `[${ts}] ${msg}\n` + logEl.textContent;
-    console.log(msg);
-  }
-
-  function setStatus(msg, type="secondary"){
-    statusEl.className = "alert alert-" + type;
-    statusEl.textContent = "Status: " + msg;
-  }
-
-  form.addEventListener("submit", async (e)=>{
-    e.preventDefault();
-    const nome = document.getElementById("nome").value.trim();
-    const documento = document.getElementById("documento").value.trim();
-    const motivo = document.getElementById("motivo").value.trim();
-
-    if(!nome || !documento){
-      setStatus("Preencha nome e documento.", "warning");
-      return;
-    }
-
-    const dados = {
-      nome,
-      documento,
-      motivo: motivo || null,
-      horarioEntrada: new Date().toLocaleString("pt-BR"),
-      horarioSaida: null,
-      status: "Entrada",
-      criadoEm: firebase.firestore.FieldValue.serverTimestamp()
+    // ---------------- CONFIGURAÇÃO FIREBASE ----------------
+    const firebaseConfig = {
+      apiKey: "AIzaSyCmZBxRVcmTPJFLdWWcNd07LZPJYZnR5N0",
+      authDomain: "portaria-e22ae.firebaseapp.com",
+      projectId: "portaria-e22ae",
+      storageBucket: "portaria-e22ae.firebasestorage.app",
+      messagingSenderId: "663485115589",
+      appId: "1:663485115589:web:4b2f860ede7f0f7b5854ac",
+      measurementId: "G-QEGQN6CTBB"
     };
 
-    try {
-      setStatus("Gravando...", "info");
-      const ref = await registrosRef.add(dados);
-      log("✅ Registro criado com ID: " + ref.id);
-      setStatus("Entrada registrada com sucesso!", "success");
-      form.reset();
-    } catch (err) {
-      log("❌ Erro ao gravar: " + err.message);
-      setStatus("Erro ao gravar: " + err.message, "danger");
-    }
-  });
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
 
-  log("Firebase inicializado (modo compat). Pronto para gravar.");
-  setStatus("Pronto. Preencha e registre uma entrada.", "secondary");
-</script>
+    // ---------------- ELEMENTOS ----------------
+    const statusEl = document.getElementById('status');
+    const listaEl = document.getElementById('listaRegistros');
+    const btnEntrar = document.getElementById('btnEntrar');
+
+    function setStatus(msg, type='ok'){
+      statusEl.textContent = 'Status: ' + msg;
+      statusEl.className = type === 'error' ? 'error' : 'ok';
+    }
+
+    // ---------------- REGISTRAR ENTRADA ----------------
+    async function registrarEntrada(){
+      setStatus('Gravando...');
+      btnEntrar.disabled = true;
+
+      const nome = document.getElementById('nome').value.trim();
+      const documento = document.getElementById('documento').value.trim();
+      const veiculo = document.getElementById('veiculo').value.trim();
+      const destino = document.getElementById('destino').value.trim();
+      const motivo = document.getElementById('motivo').value.trim();
+
+      if(!nome || !documento){
+        setStatus('Erro: nome e documento são obrigatórios.', 'error');
+        btnEntrar.disabled = false;
+        return;
+      }
+
+      try {
+        const payload = {
+          nome, documento, veiculo: veiculo || null,
+          destino: destino || null, motivo: motivo || null,
+          horarioEntrada: serverTimestamp(),
+          horarioSaida: null,
+          status: 'Entrada'
+        };
+        await addDoc(collection(db, 'registros_portaria'), payload);
+        setStatus('✅ Entrada registrada com sucesso!');
+        document.getElementById('form').reset();
+      } catch (err) {
+        setStatus('Erro ao gravar: ' + err.message, 'error');
+      } finally {
+        btnEntrar.disabled = false;
+      }
+    }
+
+    // ---------------- REGISTRAR SAÍDA ----------------
+    async function registrarSaida(id){
+      if(!confirm('Confirmar saída deste visitante?')) return;
+      try {
+        const ref = doc(db, 'registros_portaria', id);
+        await updateDoc(ref, {
+          status: 'Saída',
+          horarioSaida: serverTimestamp()
+        });
+        setStatus('Saída registrada com sucesso!');
+      } catch (err) {
+        setStatus('Erro ao registrar saída: ' + err.message, 'error');
+      }
+    }
+
+    // ---------------- LISTAR REGISTROS ----------------
+    function carregarRegistros(){
+      const q = query(collection(db, 'registros_portaria'), orderBy('horarioEntrada', 'desc'));
+      onSnapshot(q, (snapshot) => {
+        listaEl.innerHTML = '';
+        snapshot.forEach(docSnap => {
+          const d = docSnap.data();
+          const id = docSnap.id;
+          const entrada = d.horarioEntrada?.toDate ? d.horarioEntrada.toDate().toLocaleString() : '-';
+          const saida = d.horarioSaida?.toDate ? d.horarioSaida.toDate().toLocaleString() : '-';
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td>${d.nome || '-'}</td>
+            <td>${d.documento || '-'}</td>
+            <td>${d.destino || '-'}</td>
+            <td>${d.motivo || '-'}</td>
+            <td>${d.status || '-'}</td>
+            <td>${entrada}</td>
+            <td>${saida}</td>
+            <td>
+              <button class="saida-btn" ${d.status === 'Saída' ? 'disabled' : ''} onclick="registrarSaida('${id}')">
+                Registrar Saída
+              </button>
+            </td>
+          `;
+          listaEl.appendChild(tr);
+        });
+        setStatus(`Atualizado: ${snapshot.size} registro(s).`);
+      }, (err) => {
+        setStatus('Erro ao carregar: ' + err.message, 'error');
+      });
+    }
+
+    carregarRegistros();
+    window.registrarEntrada = registrarEntrada;
+    window.registrarSaida = registrarSaida;
+  </script>
 </body>
 </html>
