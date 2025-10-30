@@ -1,8 +1,10 @@
-// Importando módulos do Firebase
+// ====== Importando módulos Firebase ======
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
-import { getFirestore, collection, addDoc, getDocs, onSnapshot } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+import { 
+  getFirestore, collection, addDoc, onSnapshot, serverTimestamp, orderBy, query 
+} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
 
-// 🔥 Configuração do Firebase (use seus dados)
+// ====== Configuração do Firebase ======
 const firebaseConfig = {
   apiKey: "AIzaSyCmZBxRVcmTPJFLdWWcNd07LZPJYZnR5N0",
   authDomain: "portaria-e22ae.firebaseapp.com",
@@ -12,50 +14,49 @@ const firebaseConfig = {
   appId: "1:663485115589:web:dfb6ad9e43b8f5be049ec5"
 };
 
-// Inicializa Firebase e Firestore
+// ====== Inicialização ======
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
-
-// Referência para a coleção "visitantes"
 const visitantesRef = collection(db, "visitantes");
 
-// Função para adicionar entrada no Firestore
+// ====== Função para registrar entrada ======
 async function registrarEntrada() {
   const nome = document.getElementById("nome").value.trim();
   const documento = document.getElementById("documento").value.trim();
   const empresa = document.getElementById("empresa").value.trim();
 
   if (!nome || !documento || !empresa) {
-    alert("Preencha todos os campos!");
+    alert("⚠️ Preencha todos os campos!");
     return;
   }
 
   try {
-    const data = new Date();
-    const hora = data.toLocaleString("pt-BR");
-
     await addDoc(visitantesRef, {
       nome,
       documento,
       empresa,
-      dataHora: hora
+      dataHora: new Date().toLocaleString("pt-BR"),
+      timestamp: serverTimestamp()
     });
+
+    alert("✅ Entrada registrada com sucesso!");
 
     document.getElementById("nome").value = "";
     document.getElementById("documento").value = "";
     document.getElementById("empresa").value = "";
-    alert("✅ Entrada registrada com sucesso!");
   } catch (error) {
     console.error("Erro ao salvar no banco:", error);
+    alert("❌ Erro ao registrar entrada. Verifique o console.");
   }
 }
 
-// Função para exibir visitantes em tempo real
+// ====== Função para carregar visitantes em tempo real ======
 function carregarVisitantesTempoReal() {
   const tabela = document.getElementById("listaVisitantes");
+  const q = query(visitantesRef, orderBy("timestamp", "desc"));
 
-  onSnapshot(visitantesRef, (snapshot) => {
-    tabela.innerHTML = ""; // Limpa antes de recarregar
+  onSnapshot(q, (snapshot) => {
+    tabela.innerHTML = "";
     snapshot.forEach((doc) => {
       const visitante = doc.data();
       const linha = `
@@ -70,7 +71,7 @@ function carregarVisitantesTempoReal() {
   });
 }
 
-// Eventos
+// ====== Eventos ======
 document.getElementById("registrarEntrada").addEventListener("click", registrarEntrada);
 document.getElementById("limpar").addEventListener("click", () => {
   document.getElementById("nome").value = "";
@@ -78,5 +79,5 @@ document.getElementById("limpar").addEventListener("click", () => {
   document.getElementById("empresa").value = "";
 });
 
-// Carrega automaticamente ao abrir
+// ====== Inicializa carregamento automático ======
 carregarVisitantesTempoReal();
