@@ -6,16 +6,17 @@
   <title>Controle de Portaria (Firestore)</title>
   <style>
     body{font-family:Arial,Helvetica,sans-serif;background:#f4f6f8;padding:20px}
-    .card{background:#fff;padding:16px;border-radius:8px;box-shadow:0 6px 20px rgba(0,0,0,0.06);max-width:900px;margin:12px auto}
+    .card{background:#fff;padding:16px;border-radius:8px;box-shadow:0 6px 20px rgba(0,0,0,0.06);max-width:1000px;margin:12px auto}
     input,button{padding:8px;border-radius:6px;border:1px solid #cbd5e1}
     button{cursor:pointer}
     #status{margin-top:10px;padding:8px;border-radius:6px;background:#f8fafc;color:#0f172a}
     .error{background:#fff1f2;color:#991b1b;border:1px solid #fecaca}
     .ok{background:#ecfdf5;color:#064e3b;border:1px solid #bbf7d0}
-    .log{font-family:monospace;white-space:pre-wrap;max-height:220px;overflow:auto;padding:8px;background:#0f172a;color:#e6eef8;border-radius:6px}
-    table{width:100%;border-collapse:collapse;margin-top:10px}
+    table{width:100%;border-collapse:collapse;margin-top:10px;font-size:14px}
     th,td{border:1px solid #e2e8f0;padding:6px;text-align:left}
     th{background:#f1f5f9}
+    .saida-btn{background:#dc2626;color:#fff;border:none;padding:4px 8px;border-radius:4px;cursor:pointer}
+    .saida-btn[disabled]{background:#94a3b8;cursor:not-allowed}
   </style>
 </head>
 <body>
@@ -36,16 +37,24 @@
     <h4>Registros Salvos</h4>
     <table id="tabelaRegistros">
       <thead>
-        <tr><th>Nome</th><th>Documento</th><th>Destino</th><th>Motivo</th><th>Status</th><th>Horário</th></tr>
+        <tr>
+          <th>Nome</th><th>Documento</th><th>Destino</th>
+          <th>Motivo</th><th>Status</th><th>Entrada</th><th>Saída</th><th>Ações</th>
+        </tr>
       </thead>
       <tbody id="listaRegistros"></tbody>
     </table>
   </div>
 
   <script type="module">
+    // ---------------- FIREBASE IMPORTS ----------------
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-    import { getFirestore, collection, addDoc, serverTimestamp, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+    import {
+      getFirestore, collection, addDoc, updateDoc, doc,
+      serverTimestamp, onSnapshot, query, orderBy
+    } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
+    // ---------------- CONFIGURAÇÃO FIREBASE ----------------
     const firebaseConfig = {
       apiKey: "AIzaSyCmZBxRVcmTPJFLdWWcNd07LZPJYZnR5N0",
       authDomain: "portaria-e22ae.firebaseapp.com",
@@ -59,15 +68,17 @@
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
 
+    // ---------------- ELEMENTOS ----------------
     const statusEl = document.getElementById('status');
     const listaEl = document.getElementById('listaRegistros');
     const btnEntrar = document.getElementById('btnEntrar');
 
-    function setStatus(msg, type='ok') {
+    function setStatus(msg, type='ok'){
       statusEl.textContent = 'Status: ' + msg;
       statusEl.className = type === 'error' ? 'error' : 'ok';
     }
 
+    // ---------------- REGISTRAR ENTRADA ----------------
     async function registrarEntrada(){
       setStatus('Gravando...');
       btnEntrar.disabled = true;
@@ -84,17 +95,14 @@
         return;
       }
 
-      try{
+      try {
         const payload = {
-          nome, documento,
-          veiculo: veiculo || null,
-          destino: destino || null,
-          motivo: motivo || null,
+          nome, documento, veiculo: veiculo || null,
+          destino: destino || null, motivo: motivo || null,
           horarioEntrada: serverTimestamp(),
           horarioSaida: null,
           status: 'Entrada'
         };
-
         await addDoc(collection(db, 'registros_portaria'), payload);
         setStatus('✅ Entrada registrada com sucesso!');
         document.getElementById('form').reset();
@@ -105,14 +113,31 @@
       }
     }
 
-    // 🔄 Observa e lista todos os registros em tempo real
+    // ---------------- REGISTRAR SAÍDA ----------------
+    async function registrarSaida(id){
+      if(!confirm('Confirmar saída deste visitante?')) return;
+      try {
+        const ref = doc(db, 'registros_portaria', id);
+        await updateDoc(ref, {
+          status: 'Saída',
+          horarioSaida: serverTimestamp()
+        });
+        setStatus('Saída registrada com sucesso!');
+      } catch (err) {
+        setStatus('Erro ao registrar saída: ' + err.message, 'error');
+      }
+    }
+
+    // ---------------- LISTAR REGISTROS ----------------
     function carregarRegistros(){
       const q = query(collection(db, 'registros_portaria'), orderBy('horarioEntrada', 'desc'));
       onSnapshot(q, (snapshot) => {
         listaEl.innerHTML = '';
-        snapshot.forEach(doc => {
-          const d = doc.data();
-          const dataHora = d.horarioEntrada?.toDate ? d.horarioEntrada.toDate().toLocaleString() : '-';
+        snapshot.forEach(docSnap => {
+          const d = docSnap.data();
+          const id = docSnap.id;
+          const entrada = d.horarioEntrada?.toDate ? d.horarioEntrada.toDate().toLocaleString() : '-';
+          const saida = d.horarioSaida?.toDate ? d.horarioSaida.toDate().toLocaleString() : '-';
           const tr = document.createElement('tr');
           tr.innerHTML = `
             <td>${d.nome || '-'}</td>
@@ -120,11 +145,17 @@
             <td>${d.destino || '-'}</td>
             <td>${d.motivo || '-'}</td>
             <td>${d.status || '-'}</td>
-            <td>${dataHora}</td>
+            <td>${entrada}</td>
+            <td>${saida}</td>
+            <td>
+              <button class="saida-btn" ${d.status === 'Saída' ? 'disabled' : ''} onclick="registrarSaida('${id}')">
+                Registrar Saída
+              </button>
+            </td>
           `;
           listaEl.appendChild(tr);
         });
-        setStatus(`Carregado ${snapshot.size} registro(s).`);
+        setStatus(`Atualizado: ${snapshot.size} registro(s).`);
       }, (err) => {
         setStatus('Erro ao carregar: ' + err.message, 'error');
       });
@@ -132,6 +163,7 @@
 
     carregarRegistros();
     window.registrarEntrada = registrarEntrada;
+    window.registrarSaida = registrarSaida;
   </script>
 </body>
 </html>
