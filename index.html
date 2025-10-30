@@ -25,6 +25,7 @@
     </div>
     <div class="text-center mt-3">
       <button type="submit" class="btn btn-success">Registrar Entrada</button>
+      <button type="button" id="btnSaida" class="btn btn-danger">Registrar Saída</button>
     </div>
   </form>
 
@@ -74,7 +75,7 @@
   <div id="consoleLog" class="log"></div>
 </div>
 
-<!-- 🔥 SDK compatível (sem import/export) -->
+<!-- 🔥 SDK compatível -->
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 
@@ -132,7 +133,7 @@
     };
 
     try {
-      setStatus("Gravando...", "info");
+      setStatus("Gravando entrada...", "info");
       await registrosRef.add(dados);
       log("✅ Entrada registrada: " + nome);
       setStatus("Entrada registrada com sucesso!", "success");
@@ -140,6 +141,45 @@
     } catch (err) {
       log("❌ Erro ao gravar: " + err.message);
       setStatus("Erro ao gravar: " + err.message, "danger");
+    }
+  });
+
+  // Registrar saída
+  document.getElementById("btnSaida").addEventListener("click", async ()=>{
+    const documento = document.getElementById("documento").value.trim();
+
+    if(!documento){
+      setStatus("Informe o documento para registrar saída.", "warning");
+      return;
+    }
+
+    try {
+      setStatus("Buscando registro de entrada...", "info");
+      const snapshot = await registrosRef
+        .where("documento", "==", documento)
+        .where("status", "==", "Entrada")
+        .orderBy("criadoEm", "desc")
+        .limit(1)
+        .get();
+
+      if(snapshot.empty){
+        setStatus("Nenhum registro de entrada ativo encontrado.", "warning");
+        log("Nenhum registro ativo encontrado para " + documento);
+        return;
+      }
+
+      const docRef = snapshot.docs[0].ref;
+      await docRef.update({
+        horarioSaida: new Date().toLocaleString("pt-BR"),
+        status: "Saída"
+      });
+
+      setStatus("Saída registrada com sucesso!", "success");
+      log("🚪 Saída registrada para documento: " + documento);
+      document.getElementById("formEntrada").reset();
+    } catch (err) {
+      setStatus("Erro ao registrar saída: " + err.message, "danger");
+      log("❌ Erro ao registrar saída: " + err.message);
     }
   });
 
@@ -160,6 +200,7 @@
 
       snapshot.forEach(doc=>{
         const dados = doc.data();
+
         if(filtroData){
           const entrada = dados.horarioEntrada ? dados.horarioEntrada.split(" ")[0] : "";
           if(!entrada.includes(filtroData.split("-").reverse().join("/"))) return;
@@ -200,7 +241,7 @@
   // Inicialização
   carregarRegistros();
   log("🔥 Firebase inicializado e sincronização iniciada.");
-  setStatus("Pronto. Preencha o formulário e clique em 'Registrar Entrada'.", "secondary");
+  setStatus("Pronto. Preencha o formulário e clique em 'Registrar Entrada' ou 'Registrar Saída'.", "secondary");
 </script>
 </body>
 </html>
