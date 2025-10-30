@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>Debug - Controle de Portaria (Firestore)</title>
+  <title>Controle de Portaria (Firestore)</title>
   <style>
     body{font-family:Arial,Helvetica,sans-serif;background:#f4f6f8;padding:20px}
     .card{background:#fff;padding:16px;border-radius:8px;box-shadow:0 6px 20px rgba(0,0,0,0.06);max-width:900px;margin:12px auto}
@@ -13,12 +13,14 @@
     .error{background:#fff1f2;color:#991b1b;border:1px solid #fecaca}
     .ok{background:#ecfdf5;color:#064e3b;border:1px solid #bbf7d0}
     .log{font-family:monospace;white-space:pre-wrap;max-height:220px;overflow:auto;padding:8px;background:#0f172a;color:#e6eef8;border-radius:6px}
+    table{width:100%;border-collapse:collapse;margin-top:10px}
+    th,td{border:1px solid #e2e8f0;padding:6px;text-align:left}
+    th{background:#f1f5f9}
   </style>
 </head>
 <body>
   <div class="card">
-    <h2>Controle de Portaria — Debug</h2>
-    <p>Use este arquivo para testar gravação e ver mensagens de erro diretamente.</p>
+    <h2>Controle de Portaria — Firestore</h2>
 
     <form id="form" onsubmit="event.preventDefault(); registrarEntrada();">
       <input id="nome" placeholder="Nome do visitante" required style="width:48%;margin-right:4%"/>
@@ -27,19 +29,22 @@
       <input id="destino" placeholder="Destino" style="width:32%;margin-right:2%"/>
       <input id="motivo" placeholder="Motivo" style="width:32%"/><br/><br/>
       <button id="btnEntrar" type="submit">Registrar Entrada</button>
-      <button id="btnTest" type="button">Testar JS</button>
     </form>
 
     <div id="status" class="ok">Status: aguardando ação...</div>
 
-    <h4>Console (logs do script)</h4>
-    <div id="consoleLog" class="log"></div>
+    <h4>Registros Salvos</h4>
+    <table id="tabelaRegistros">
+      <thead>
+        <tr><th>Nome</th><th>Documento</th><th>Destino</th><th>Motivo</th><th>Status</th><th>Horário</th></tr>
+      </thead>
+      <tbody id="listaRegistros"></tbody>
+    </table>
   </div>
 
   <script type="module">
-    // ---------------- IMPORTS FIREBASE ----------------
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-    import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+    import { getFirestore, collection, addDoc, serverTimestamp, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyCmZBxRVcmTPJFLdWWcNd07LZPJYZnR5N0",
@@ -51,31 +56,20 @@
       measurementId: "G-QEGQN6CTBB"
     };
 
-    // Inicializa Firebase
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
 
-    // ---------------- FUNÇÕES AUXILIARES ----------------
     const statusEl = document.getElementById('status');
-    const logEl = document.getElementById('consoleLog');
+    const listaEl = document.getElementById('listaRegistros');
     const btnEntrar = document.getElementById('btnEntrar');
-    const btnTest = document.getElementById('btnTest');
-
-    function log(msg) {
-      const ts = new Date().toLocaleTimeString();
-      logEl.textContent = `[${ts}] ${msg}\n` + logEl.textContent;
-      console.log(msg);
-    }
 
     function setStatus(msg, type='ok') {
       statusEl.textContent = 'Status: ' + msg;
       statusEl.className = type === 'error' ? 'error' : 'ok';
     }
 
-    // ---------------- FUNÇÃO DE GRAVAÇÃO ----------------
     async function registrarEntrada(){
-      log('registrarEntrada() chamada.');
-      setStatus('Gravando...', 'ok');
+      setStatus('Gravando...');
       btnEntrar.disabled = true;
 
       const nome = document.getElementById('nome').value.trim();
@@ -86,7 +80,6 @@
 
       if(!nome || !documento){
         setStatus('Erro: nome e documento são obrigatórios.', 'error');
-        log('Validação: campos obrigatórios ausentes.');
         btnEntrar.disabled = false;
         return;
       }
@@ -102,24 +95,42 @@
           status: 'Entrada'
         };
 
-        const ref = await addDoc(collection(db, 'registros_portaria'), payload);
-        log('Documento salvo com id: ' + ref.id);
-        setStatus('✅ Gravado com sucesso (id: ' + ref.id + ')');
+        await addDoc(collection(db, 'registros_portaria'), payload);
+        setStatus('✅ Entrada registrada com sucesso!');
         document.getElementById('form').reset();
       } catch (err) {
-        log('Erro ao gravar: ' + err.message);
         setStatus('Erro ao gravar: ' + err.message, 'error');
       } finally {
         btnEntrar.disabled = false;
       }
     }
 
-    // ---------------- TESTE DE JS ----------------
-    btnTest.addEventListener('click', () => {
-      log('Botão Testar JS clicado.');
-      setStatus('Teste: JS carregado e respondendo.');
-    });
+    // 🔄 Observa e lista todos os registros em tempo real
+    function carregarRegistros(){
+      const q = query(collection(db, 'registros_portaria'), orderBy('horarioEntrada', 'desc'));
+      onSnapshot(q, (snapshot) => {
+        listaEl.innerHTML = '';
+        snapshot.forEach(doc => {
+          const d = doc.data();
+          const dataHora = d.horarioEntrada?.toDate ? d.horarioEntrada.toDate().toLocaleString() : '-';
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td>${d.nome || '-'}</td>
+            <td>${d.documento || '-'}</td>
+            <td>${d.destino || '-'}</td>
+            <td>${d.motivo || '-'}</td>
+            <td>${d.status || '-'}</td>
+            <td>${dataHora}</td>
+          `;
+          listaEl.appendChild(tr);
+        });
+        setStatus(`Carregado ${snapshot.size} registro(s).`);
+      }, (err) => {
+        setStatus('Erro ao carregar: ' + err.message, 'error');
+      });
+    }
 
+    carregarRegistros();
     window.registrarEntrada = registrarEntrada;
   </script>
 </body>
