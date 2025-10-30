@@ -21,67 +21,48 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const registrosRef = collection(db, "registros_portaria");
 
-// ================= FUNÇÃO: REGISTRAR ENTRADA =================
-async function registrarEntrada() {
-  const nome = document.getElementById("nome").value.trim();
-  const documento = document.getElementById("documento").value.trim();
-  const veiculo = document.getElementById("veiculo").value.trim();
-  const destino = document.getElementById("destino").value.trim();
-  const motivo = document.getElementById("motivo").value.trim();
+// ================= FUNÇÕES =================
 
-  if (!nome || !documento) {
-    alert("⚠️ Nome e Documento são obrigatórios!");
-    return;
-  }
+// Registrar entrada
+async function registrarEntrada() {
+  const nome = nomeEl.value.trim();
+  const documento = documentoEl.value.trim();
+  if (!nome || !documento) return alert("⚠️ Nome e Documento são obrigatórios!");
 
   const dados = {
     nome,
     documento,
-    veiculo: veiculo || null,
-    destino: destino || null,
-    motivo: motivo || null,
+    veiculo: veiculoEl.value || null,
+    destino: destinoEl.value || null,
+    motivo: motivoEl.value || null,
     horarioEntrada: new Date().toLocaleString("pt-BR"),
     horarioSaida: null,
     status: "Entrada",
     criadoEm: serverTimestamp()
   };
 
-  try {
-    await addDoc(registrosRef, dados);
-    alert("✅ Entrada registrada com sucesso!");
-    limparCampos();
-  } catch (error) {
-    console.error("Erro ao gravar no Firestore:", error);
-    alert("❌ Erro ao salvar dados. Verifique o console.");
-  }
+  await addDoc(registrosRef, dados);
+  alert("✅ Entrada registrada!");
+  limparCampos();
 }
 
-// ================= FUNÇÃO: REGISTRAR SAÍDA =================
+// Registrar saída
 async function registrarSaida(id) {
-  try {
-    const docRef = doc(db, "registros_portaria", id);
-    await updateDoc(docRef, {
-      horarioSaida: new Date().toLocaleString("pt-BR"),
-      status: "Saída"
-    });
-    alert("🚪 Saída registrada com sucesso!");
-  } catch (error) {
-    console.error("Erro ao atualizar registro:", error);
-    alert("❌ Erro ao registrar saída.");
-  }
+  const docRef = doc(db, "registros_portaria", id);
+  await updateDoc(docRef, {
+    horarioSaida: new Date().toLocaleString("pt-BR"),
+    status: "Saída"
+  });
+  alert("🚪 Saída registrada!");
 }
 
-// ================= FUNÇÃO: LISTAR REGISTROS EM TEMPO REAL =================
+// Atualizar em tempo real
 let todosRegistros = [];
-
-function carregarRegistrosTempoReal() {
+function carregarRegistros() {
   const q = query(registrosRef, orderBy("criadoEm", "desc"));
-
   onSnapshot(q, (snapshot) => {
     todosRegistros = [];
-    snapshot.forEach((docSnap) => {
-      todosRegistros.push({ id: docSnap.id, ...docSnap.data() });
-    });
+    snapshot.forEach((docSnap) => todosRegistros.push({ id: docSnap.id, ...docSnap.data() }));
     renderizarTabela();
   });
 }
@@ -89,76 +70,95 @@ function carregarRegistrosTempoReal() {
 // ================= FILTROS =================
 let filtroStatus = "Todos";
 let filtroBusca = "";
+let filtroData = "todos";
+let dataInicio = null;
+let dataFim = null;
 
 function renderizarTabela() {
   const tabela = document.getElementById("listaRegistros");
   tabela.innerHTML = "";
 
-  const registrosFiltrados = todosRegistros.filter((r) => {
-    const busca = filtroBusca.toLowerCase();
-    const combinaBusca =
-      r.nome?.toLowerCase().includes(busca) ||
-      r.documento?.toLowerCase().includes(busca);
+  const agora = new Date();
+  const hojeInicio = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate());
+  const seteDiasAtras = new Date(agora.getTime() - 7 * 86400000);
 
-    const combinaStatus =
-      filtroStatus === "Todos" || r.status === filtroStatus;
+  const filtrados = todosRegistros.filter(r => {
+    const combinaBusca = r.nome?.toLowerCase().includes(filtroBusca) || r.documento?.toLowerCase().includes(filtroBusca);
+    const combinaStatus = filtroStatus === "Todos" || r.status === filtroStatus;
 
-    return combinaBusca && combinaStatus;
+    // Conversão segura para data
+    const dataEntrada = r.horarioEntrada ? new Date(r.horarioEntrada.split("/").reverse().join("-")) : null;
+
+    let combinaData = true;
+    if (filtroData === "hoje") combinaData = dataEntrada >= hojeInicio;
+    if (filtroData === "7dias") combinaData = dataEntrada >= seteDiasAtras;
+    if (filtroData === "personalizado" && dataInicio && dataFim) {
+      combinaData = dataEntrada >= new Date(dataInicio) && dataEntrada <= new Date(dataFim);
+    }
+
+    return combinaBusca && combinaStatus && combinaData;
   });
 
-  if (registrosFiltrados.length === 0) {
+  if (filtrados.length === 0) {
     tabela.innerHTML = `<tr><td colspan="8" class="text-muted">Nenhum registro encontrado</td></tr>`;
     return;
   }
 
-  registrosFiltrados.forEach((registro) => {
+  filtrados.forEach((r) => {
     const linha = document.createElement("tr");
     linha.innerHTML = `
-      <td>${registro.nome || ""}</td>
-      <td>${registro.documento || ""}</td>
-      <td>${registro.veiculo || ""}</td>
-      <td>${registro.destino || ""}</td>
-      <td>${registro.motivo || ""}</td>
-      <td>
-        <span class="badge ${registro.status === "Entrada" ? "bg-success" : "bg-secondary"}">
-          ${registro.status}
-        </span>
-      </td>
-      <td>${registro.horarioEntrada || ""}</td>
-      <td>
-        ${registro.horarioSaida ? registro.horarioSaida :
-          `<button class="btn btn-warning btn-sm" onclick="registrarSaida('${registro.id}')">
-            Registrar Saída
-          </button>`}
-      </td>
+      <td>${r.nome || ""}</td>
+      <td>${r.documento || ""}</td>
+      <td>${r.veiculo || ""}</td>
+      <td>${r.destino || ""}</td>
+      <td>${r.motivo || ""}</td>
+      <td><span class="badge ${r.status === "Entrada" ? "bg-success" : "bg-secondary"}">${r.status}</span></td>
+      <td>${r.horarioEntrada || ""}</td>
+      <td>${r.horarioSaida ? r.horarioSaida : `<button class="btn btn-warning btn-sm" onclick="registrarSaida('${r.id}')">Registrar Saída</button>`}</td>
     `;
     tabela.appendChild(linha);
   });
 }
 
 // ================= UTILITÁRIOS =================
+const nomeEl = document.getElementById("nome");
+const documentoEl = document.getElementById("documento");
+const veiculoEl = document.getElementById("veiculo");
+const destinoEl = document.getElementById("destino");
+const motivoEl = document.getElementById("motivo");
+
 function limparCampos() {
-  ["nome", "documento", "veiculo", "destino", "motivo"].forEach(id => {
-    document.getElementById(id).value = "";
-  });
+  [nomeEl, documentoEl, veiculoEl, destinoEl, motivoEl].forEach(el => el.value = "");
 }
 
 // ================= EVENTOS =================
-document.getElementById("btnRegistrar").addEventListener("click", registrarEntrada);
-document.getElementById("btnLimpar").addEventListener("click", limparCampos);
+document.getElementById("btnRegistrar").onclick = registrarEntrada;
+document.getElementById("btnLimpar").onclick = limparCampos;
 
-// Filtros
-document.getElementById("filtroTodos").addEventListener("click", () => { filtroStatus = "Todos"; renderizarTabela(); });
-document.getElementById("filtroEntrada").addEventListener("click", () => { filtroStatus = "Entrada"; renderizarTabela(); });
-document.getElementById("filtroSaida").addEventListener("click", () => { filtroStatus = "Saída"; renderizarTabela(); });
+// Filtros básicos
+document.getElementById("filtroTodos").onclick = () => { filtroStatus = "Todos"; renderizarTabela(); };
+document.getElementById("filtroEntrada").onclick = () => { filtroStatus = "Entrada"; renderizarTabela(); };
+document.getElementById("filtroSaida").onclick = () => { filtroStatus = "Saída"; renderizarTabela(); };
+document.getElementById("filtroBusca").oninput = e => { filtroBusca = e.target.value.toLowerCase(); renderizarTabela(); };
 
-document.getElementById("filtroBusca").addEventListener("input", (e) => {
-  filtroBusca = e.target.value;
+// Filtro de data
+const filtroDataEl = document.getElementById("filtroData");
+const intervaloDatasEl = document.getElementById("intervaloDatas");
+const dataInicioEl = document.getElementById("dataInicio");
+const dataFimEl = document.getElementById("dataFim");
+
+filtroDataEl.onchange = () => {
+  filtroData = filtroDataEl.value;
+  intervaloDatasEl.classList.toggle("d-none", filtroData !== "personalizado");
+  if (filtroData !== "personalizado") renderizarTabela();
+};
+
+document.getElementById("btnAplicarData").onclick = () => {
+  dataInicio = dataInicioEl.value;
+  dataFim = dataFimEl.value;
   renderizarTabela();
-});
-
-// Torna função global
-window.registrarSaida = registrarSaida;
+};
 
 // ================= INICIALIZA =================
-carregarRegistrosTempoReal();
+window.registrarSaida = registrarSaida;
+carregarRegistros();
