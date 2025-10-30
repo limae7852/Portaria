@@ -1,158 +1,106 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>Debug - Controle de Portaria (Firestore)</title>
+  <title>Controle de Portaria - Firestore</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
   <style>
-    body{font-family:Arial,Helvetica,sans-serif;background:#f4f6f8;padding:20px}
-    .card{background:#fff;padding:16px;border-radius:8px;box-shadow:0 6px 20px rgba(0,0,0,0.06);max-width:900px;margin:12px auto}
-    input,button{padding:8px;border-radius:6px;border:1px solid #cbd5e1}
-    button{cursor:pointer}
-    #status{margin-top:10px;padding:8px;border-radius:6px;background:#f8fafc;color:#0f172a}
-    .error{background:#fff1f2;color:#991b1b;border:1px solid #fecaca}
-    .ok{background:#ecfdf5;color:#064e3b;border:1px solid #bbf7d0}
-    .log{font-family:monospace;white-space:pre-wrap;max-height:220px;overflow:auto;padding:8px;background:#0f172a;color:#e6eef8;border-radius:6px}
+    body{background:#f8fafc;padding:20px}
+    .log{font-family:monospace;white-space:pre-wrap;max-height:200px;overflow:auto;background:#0f172a;color:#e6eef8;padding:8px;border-radius:6px}
   </style>
 </head>
 <body>
-  <div class="card">
-    <h2>Controle de Portaria — Debug</h2>
-    <p>Use este arquivo para testar gravação e ver mensagens de erro diretamente.</p>
+<div class="container">
+  <h2 class="mb-3 text-center">📋 Controle de Portaria (Firestore)</h2>
 
-    <form id="form" onsubmit="event.preventDefault(); registrarEntrada();">
-      <input id="nome" placeholder="Nome do visitante" required style="width:48%;margin-right:4%"/>
-      <input id="documento" placeholder="Documento (RG/CPF)" required style="width:48%"/><br/><br/>
-      <input id="veiculo" placeholder="Veículo / Placa" style="width:32%;margin-right:2%"/>
-      <input id="destino" placeholder="Destino" style="width:32%;margin-right:2%"/>
-      <input id="motivo" placeholder="Motivo" style="width:32%"/><br/><br/>
-      <button id="btnEntrar" type="submit">Registrar Entrada</button>
-      <button id="btnTest" type="button">Testar JS</button>
-    </form>
+  <form id="formEntrada" class="card p-3 mb-3">
+    <div class="row g-2">
+      <div class="col-md-4"><input id="nome" class="form-control" placeholder="Nome" required></div>
+      <div class="col-md-4"><input id="documento" class="form-control" placeholder="Documento" required></div>
+      <div class="col-md-4"><input id="motivo" class="form-control" placeholder="Motivo"></div>
+    </div>
+    <div class="text-center mt-3">
+      <button type="submit" class="btn btn-success">Registrar Entrada</button>
+    </div>
+  </form>
 
-    <div id="status" class="ok">Status: aguardando ação...</div>
+  <div id="status" class="alert alert-secondary">Status: aguardando...</div>
 
-    <h4>Console (logs do script)</h4>
-    <div id="consoleLog" class="log"></div>
-  </div>
+  <h5>Logs</h5>
+  <div id="consoleLog" class="log"></div>
+</div>
 
-  <script type="module">
-    // ---------------- IMPORTS FIREBASE ----------------
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-    import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+<!-- 🔥 SDKs compat (sem modules, sem import/export) -->
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 
-    // ---------------- CONFIGURE AQUI ----------------
-    const firebaseConfig = {
-      apiKey: "AIzaSyCmZBxRVcmTPJFLdWWcNd07LZPJYZnR5N0",
-      authDomain: "portaria-e22ae.firebaseapp.com",
-      projectId: "portaria-e22ae",
-      storageBucket: "portaria-e22ae.firebasestorage.app",
-      messagingSenderId: "663485115589",
-      appId: "1:663485115589:web:b1c2fa0c96a2664aa88d7d"
+<script>
+  // Config Firebase
+  const firebaseConfig = {
+    apiKey: "AIzaSyCmZBxRVcmTPJFLdWWcNd07LZPJYZnR5N0",
+    authDomain: "portaria-e22ae.firebaseapp.com",
+    projectId: "portaria-e22ae",
+    storageBucket: "portaria-e22ae.firebasestorage.app",
+    messagingSenderId: "663485115589",
+    appId: "1:663485115589:web:b1c2fa0c96a2664aa88d7d"
+  };
+
+  // Inicializa Firebase (modo compat)
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.firestore();
+
+  const registrosRef = db.collection("registros_portaria");
+  const logEl = document.getElementById("consoleLog");
+  const statusEl = document.getElementById("status");
+  const form = document.getElementById("formEntrada");
+
+  function log(msg){
+    const ts = new Date().toLocaleTimeString();
+    logEl.textContent = `[${ts}] ${msg}\n` + logEl.textContent;
+    console.log(msg);
+  }
+
+  function setStatus(msg, type="secondary"){
+    statusEl.className = "alert alert-" + type;
+    statusEl.textContent = "Status: " + msg;
+  }
+
+  form.addEventListener("submit", async (e)=>{
+    e.preventDefault();
+    const nome = document.getElementById("nome").value.trim();
+    const documento = document.getElementById("documento").value.trim();
+    const motivo = document.getElementById("motivo").value.trim();
+
+    if(!nome || !documento){
+      setStatus("Preencha nome e documento.", "warning");
+      return;
+    }
+
+    const dados = {
+      nome,
+      documento,
+      motivo: motivo || null,
+      horarioEntrada: new Date().toLocaleString("pt-BR"),
+      horarioSaida: null,
+      status: "Entrada",
+      criadoEm: firebase.firestore.FieldValue.serverTimestamp()
     };
-    // -------------------------------------------------
 
-    // UI helpers
-    const statusEl = document.getElementById('status')
-    const logEl = document.getElementById('consoleLog')
-    const btnEntrar = document.getElementById('btnEntrar')
-    const btnTest = document.getElementById('btnTest')
-
-    function log(msg){
-      const ts = new Date().toLocaleTimeString()
-      logEl.textContent = `[${ts}] ${msg}\n` + logEl.textContent
-      console.log(msg)
-    }
-    function setStatus(msg, type='ok'){
-      statusEl.textContent = 'Status: ' + msg
-      statusEl.className = type === 'error' ? 'error' : 'ok'
-    }
-
-    // quick checks
-    if(!firebaseConfig || !firebaseConfig.projectId || firebaseConfig.projectId === 'SEU_PROJETO'){
-      setStatus('Erro: firebaseConfig não preenchido ou contém placeholders. Cole seu firebaseConfig.', 'error')
-      log('firebaseConfig ausente ou com placeholders. Pare e insira as credenciais reais.')
-      // Still continue so user can see JS loaded
-    } else {
-      log('firebaseConfig detectado: projectId=' + firebaseConfig.projectId)
-    }
-
-    let db = null
     try {
-      const app = initializeApp(firebaseConfig)
-      db = getFirestore(app)
-      log('Firebase inicializado com sucesso.')
-      setStatus('Firebase inicializado. Pronto para gravação.')
-    } catch(err) {
-      setStatus('Erro ao inicializar Firebase: ' + (err.message || err), 'error')
-      log('Erro inicializando Firebase: ' + err?.message)
-      // stop here — registrarEntrada will still try and show useful error
+      setStatus("Gravando...", "info");
+      const ref = await registrosRef.add(dados);
+      log("✅ Registro criado com ID: " + ref.id);
+      setStatus("Entrada registrada com sucesso!", "success");
+      form.reset();
+    } catch (err) {
+      log("❌ Erro ao gravar: " + err.message);
+      setStatus("Erro ao gravar: " + err.message, "danger");
     }
+  });
 
-    // function to save entry
-    async function registrarEntrada(){
-      log('registrarEntrada() chamada.')
-      setStatus('Gravando...', 'ok')
-      btnEntrar.disabled = true
-
-      const nome = document.getElementById('nome').value.trim()
-      const documento = document.getElementById('documento').value.trim()
-      const veiculo = document.getElementById('veiculo').value.trim()
-      const destino = document.getElementById('destino').value.trim()
-      const motivo = document.getElementById('motivo').value.trim()
-
-      if(!nome || !documento){
-        setStatus('Erro: nome e documento são obrigatórios.', 'error')
-        log('Validação: campos obrigatórios ausentes.')
-        btnEntrar.disabled = false
-        return
-      }
-
-      if(!db){
-        setStatus('Erro: Firestore não inicializado corretamente. Verifique firebaseConfig e console.', 'error')
-        log('Abortando gravação: db é null.')
-        btnEntrar.disabled = false
-        return
-      }
-
-      try{
-        // mostra o payload nos logs antes de gravar
-        const payload = { nome, documento, veiculo: veiculo||null, destino: destino||null, motivo: motivo||null, horarioEntrada: serverTimestamp(), horarioSaida: null, status: 'Entrada' }
-        log('Payload a ser gravado: ' + JSON.stringify({ nome, documento, veiculo, destino, motivo }))
-        const ref = await addDoc(collection(db, 'registros_portaria'), payload)
-        log('Documento salvo com id: ' + ref.id)
-        setStatus('✅ Gravado com sucesso (id: ' + ref.id + ')')
-        // limpar campos
-        document.getElementById('form').reset()
-      } catch (err) {
-        // erros comuns: permissões, invalid-api-key, network
-        const em = err?.message || String(err)
-        log('Erro ao gravar: ' + em)
-        setStatus('Erro ao gravar: ' + em, 'error')
-      } finally {
-        btnEntrar.disabled = false
-      }
-    }
-
-    // expose for inline form attribute
-    window.registrarEntrada = registrarEntrada
-
-    // test button: verifica se a função está ligada
-    btnTest.addEventListener('click', () => {
-      log('Botão Testar JS clicado — verificação básica.')
-      setStatus('Teste: JS carregado e respondendo.')
-    })
-
-    // também captura erros globais para mostrar no painel
-    window.addEventListener('error', (e) => {
-      log('Erro global detectado: ' + (e.error?.message || e.message || e))
-      setStatus('Erro runtime: ' + (e.error?.message || e.message || e), 'error')
-    })
-
-    window.addEventListener('unhandledrejection', (ev) => {
-      log('UnhandledRejection: ' + (ev.reason?.message || ev.reason || JSON.stringify(ev.reason)))
-      setStatus('Erro promise: ' + (ev.reason?.message || ev.reason || ''), 'error')
-    })
-  </script>
+  log("Firebase inicializado (modo compat). Pronto para gravar.");
+  setStatus("Pronto. Preencha e registre uma entrada.", "secondary");
+</script>
 </body>
 </html>
