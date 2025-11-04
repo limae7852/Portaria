@@ -6,15 +6,15 @@
   <title>GateGuard - Controle de Portaria</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/feather-icons"></script>
-  <link rel="stylesheet" href="style.css">
 </head>
 
 <body class="bg-gray-50">
+  <!-- Navbar -->
   <nav class="bg-white shadow p-4 flex justify-between items-center">
     <h1 class="text-2xl font-bold text-gray-800">GateGuard</h1>
   </nav>
 
-  <main class="p-8 max-w-6xl mx-auto">
+  <main class="p-8 max-w-7xl mx-auto">
     <div class="flex justify-between items-center mb-8">
       <h1 class="text-3xl font-bold text-gray-800">Controle de Portaria</h1>
       <button id="novoRegistroBtn" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center">
@@ -22,12 +22,17 @@
       </button>
     </div>
 
+    <!-- Filtro -->
+    <div class="flex items-center space-x-3 mb-6">
+      <span class="text-gray-700 font-semibold">Filtrar:</span>
+      <button id="filtroTodos" class="bg-gray-200 hover:bg-gray-300 px-3 py-1 rounded">Todos</button>
+      <button id="filtroPresentes" class="bg-green-200 hover:bg-green-300 px-3 py-1 rounded">Presentes</button>
+      <button id="filtroSaida" class="bg-red-200 hover:bg-red-300 px-3 py-1 rounded">Saíram</button>
+    </div>
+
+    <!-- Tabela -->
     <div class="bg-white rounded-xl shadow-md overflow-hidden mb-8">
       <div class="p-6">
-        <div class="flex justify-between items-center mb-6">
-          <h2 class="text-xl font-semibold text-gray-700">Registros Recentes</h2>
-        </div>
-
         <div class="overflow-x-auto">
           <table class="min-w-full divide-y divide-gray-200" id="tabelaRegistros">
             <thead class="bg-gray-50">
@@ -36,21 +41,20 @@
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Documento</th>
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Placa</th>
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Destino</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Motivo</th>
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Entrada</th>
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Saída</th>
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Ações</th>
               </tr>
             </thead>
-            <tbody class="bg-white divide-y divide-gray-200" id="listaRegistros">
-              <!-- registros serão carregados do Firestore -->
-            </tbody>
+            <tbody id="listaRegistros" class="bg-white divide-y divide-gray-200"></tbody>
           </table>
         </div>
       </div>
     </div>
   </main>
 
-  <!-- Modal para novo registro -->
+  <!-- Modal de novo registro -->
   <div id="modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
     <div class="bg-white p-6 rounded-xl shadow-xl w-96">
       <h2 class="text-xl font-semibold mb-4">Novo Registro</h2>
@@ -58,6 +62,7 @@
       <input id="documento" type="text" placeholder="Documento (CPF ou RG)" class="w-full border p-2 rounded mb-3">
       <input id="placa" type="text" placeholder="Placa do veículo (ex: ABC1D23)" class="w-full border p-2 rounded mb-3">
       <input id="destino" type="text" placeholder="Destino (Ex: Apto 101)" class="w-full border p-2 rounded mb-3">
+      <input id="motivo" type="text" placeholder="Motivo da vinda" class="w-full border p-2 rounded mb-3">
       <div class="flex justify-end space-x-3">
         <button id="cancelar" class="bg-gray-300 px-4 py-2 rounded">Cancelar</button>
         <button id="salvar" class="bg-blue-600 text-white px-4 py-2 rounded">Salvar</button>
@@ -67,14 +72,14 @@
 
   <footer class="text-center py-4 text-gray-500">© 2025 GateGuard</footer>
 
-  <!-- Firebase SDK -->
+  <!-- Firebase -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-    import { 
-      getFirestore, collection, addDoc, deleteDoc, updateDoc, doc, onSnapshot, serverTimestamp 
+    import {
+      getFirestore, collection, addDoc, deleteDoc, updateDoc, doc, onSnapshot, serverTimestamp
     } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
-    // 🔥 CONFIGURAÇÃO DO FIREBASE (substitua pelos seus dados)
+    // 🔥 Configuração Firebase (substitua pelos seus dados)
     const firebaseConfig = {
       apiKey: "AIzaSyCmZBxRVcmTPJFLdWWcNd07LZPJYZnR5N0",
       authDomain: "portaria-e22ae.firebaseapp.com",
@@ -82,10 +87,9 @@
       storageBucket: "portaria-e22ae.firebasestorage.app",
       messagingSenderId: "663485115589",
       appId: "1:663485115589:web:4b2f860ede7f0f7b5854ac",
-      measurementId: "G-QEGQN6CTBB"
+      measurementId: "G-QEGQN6CTBB""
     };
 
-    // Inicializar Firebase
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
 
@@ -95,18 +99,24 @@
     const btnSalvar = document.getElementById("salvar");
     const btnCancelar = document.getElementById("cancelar");
 
+    const filtroTodos = document.getElementById("filtroTodos");
+    const filtroPresentes = document.getElementById("filtroPresentes");
+    const filtroSaida = document.getElementById("filtroSaida");
+
+    let filtroAtual = "todos";
+
     btnNovo.addEventListener("click", () => modal.classList.remove("hidden"));
     btnCancelar.addEventListener("click", () => modal.classList.add("hidden"));
 
-    // ➕ Adicionar novo registro
     btnSalvar.addEventListener("click", async () => {
-      const visitante = document.getElementById("visitante").value.trim();
-      const documento = document.getElementById("documento").value.trim();
-      const placa = document.getElementById("placa").value.trim();
-      const destino = document.getElementById("destino").value.trim();
+      const visitante = visitanteInput("visitante");
+      const documento = visitanteInput("documento");
+      const placa = visitanteInput("placa");
+      const destino = visitanteInput("destino");
+      const motivo = visitanteInput("motivo");
 
-      if (!visitante || !documento || !destino) {
-        alert("Preencha todos os campos!");
+      if (!visitante || !documento || !destino || !motivo) {
+        alert("Preencha todos os campos obrigatórios!");
         return;
       }
 
@@ -115,40 +125,52 @@
         documento,
         placa: placa || "-",
         destino,
+        motivo,
         entrada: new Date().toLocaleString(),
         saida: "-",
         timestamp: serverTimestamp()
       });
 
       modal.classList.add("hidden");
-      ["visitante","documento","placa","destino"].forEach(id => document.getElementById(id).value = "");
+      ["visitante","documento","placa","destino","motivo"].forEach(id => document.getElementById(id).value = "");
     });
+
+    const visitanteInput = (id) => document.getElementById(id).value.trim();
 
     // 🔄 Atualização em tempo real
     onSnapshot(collection(db, "registros"), (snapshot) => {
-      tabela.innerHTML = "";
-      snapshot.forEach((docSnap) => {
-        const dados = docSnap.data();
-        const tr = document.createElement("tr");
+      renderizar(snapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() })));
+    });
 
+    // 🔁 Função de renderização com filtro
+    function renderizar(registros) {
+      tabela.innerHTML = "";
+
+      let filtrados = registros;
+      if (filtroAtual === "presentes") filtrados = registros.filter(r => r.saida === "-");
+      if (filtroAtual === "saida") filtrados = registros.filter(r => r.saida !== "-");
+
+      filtrados.forEach((dados) => {
+        const tr = document.createElement("tr");
         const temSaida = dados.saida !== "-";
+
         tr.innerHTML = `
           <td class="px-6 py-4 text-sm text-gray-900">${dados.visitante}</td>
           <td class="px-6 py-4 text-sm text-gray-500">${dados.documento}</td>
-          <td class="px-6 py-4 text-sm text-gray-500">${dados.placa || "-"}</td>
+          <td class="px-6 py-4 text-sm text-gray-500">${dados.placa}</td>
           <td class="px-6 py-4 text-sm text-gray-500">${dados.destino}</td>
+          <td class="px-6 py-4 text-sm text-gray-500">${dados.motivo}</td>
           <td class="px-6 py-4 text-sm text-gray-500">${dados.entrada}</td>
           <td class="px-6 py-4 text-sm text-gray-500">${dados.saida}</td>
           <td class="px-6 py-4 text-sm">
-            ${!temSaida 
+            ${!temSaida
               ? `
-                <button class="text-green-600 hover:text-green-900 mr-3" data-saida="${docSnap.id}">
+                <button class="text-green-600 hover:text-green-900 mr-3" data-saida="${dados.id}">
                   <i data-feather="log-out"></i>
                 </button>
-                <button class="text-red-600 hover:text-red-900" data-del="${docSnap.id}">
+                <button class="text-red-600 hover:text-red-900" data-del="${dados.id}">
                   <i data-feather="trash-2"></i>
-                </button>
-              `
+                </button>`
               : `<span class="text-gray-400 italic">Concluído</span>`
             }
           </td>
@@ -158,7 +180,6 @@
 
       feather.replace();
 
-      // 🕓 Registrar saída
       document.querySelectorAll("[data-saida]").forEach(btn => {
         btn.addEventListener("click", async () => {
           const id = btn.dataset.saida;
@@ -170,7 +191,6 @@
         });
       });
 
-      // ❌ Excluir registro
       document.querySelectorAll("[data-del]").forEach(btn => {
         btn.addEventListener("click", async () => {
           if (confirm("Deseja excluir este registro?")) {
@@ -178,11 +198,22 @@
           }
         });
       });
-    });
+    }
+
+    // 🎚️ Filtros
+    filtroTodos.onclick = () => { filtroAtual = "todos"; atualizarCorFiltros(); };
+    filtroPresentes.onclick = () => { filtroAtual = "presentes"; atualizarCorFiltros(); };
+    filtroSaida.onclick = () => { filtroAtual = "saida"; atualizarCorFiltros(); };
+
+    function atualizarCorFiltros() {
+      [filtroTodos, filtroPresentes, filtroSaida].forEach(btn => btn.classList.remove("ring-2", "ring-blue-500"));
+      if (filtroAtual === "todos") filtroTodos.classList.add("ring-2", "ring-blue-500");
+      if (filtroAtual === "presentes") filtroPresentes.classList.add("ring-2", "ring-blue-500");
+      if (filtroAtual === "saida") filtroSaida.classList.add("ring-2", "ring-blue-500");
+    }
+
   </script>
 
-  <script>
-    feather.replace();
-  </script>
+  <script>feather.replace();</script>
 </body>
 </html>
