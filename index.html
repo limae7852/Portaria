@@ -85,7 +85,7 @@
       measurementId: "G-QEGQN6CTBB"
     };
 
-    // Inicialização do Firebase
+    // Inicializar Firebase
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
 
@@ -130,6 +130,8 @@
       snapshot.forEach((docSnap) => {
         const dados = docSnap.data();
         const tr = document.createElement("tr");
+
+        const temSaida = dados.saida !== "-";
         tr.innerHTML = `
           <td class="px-6 py-4 text-sm text-gray-900">${dados.visitante}</td>
           <td class="px-6 py-4 text-sm text-gray-500">${dados.documento}</td>
@@ -138,14 +140,17 @@
           <td class="px-6 py-4 text-sm text-gray-500">${dados.entrada}</td>
           <td class="px-6 py-4 text-sm text-gray-500">${dados.saida}</td>
           <td class="px-6 py-4 text-sm">
-            ${dados.saida === "-" 
-              ? `<button class="text-green-600 hover:text-green-900 mr-3" data-saida="${docSnap.id}">
+            ${!temSaida 
+              ? `
+                <button class="text-green-600 hover:text-green-900 mr-3" data-saida="${docSnap.id}">
                   <i data-feather="log-out"></i>
-                </button>` 
-              : ""}
-            <button class="text-red-600 hover:text-red-900" data-del="${docSnap.id}">
-              <i data-feather="trash-2"></i>
-            </button>
+                </button>
+                <button class="text-red-600 hover:text-red-900" data-del="${docSnap.id}">
+                  <i data-feather="trash-2"></i>
+                </button>
+              `
+              : `<span class="text-gray-400 italic">Concluído</span>`
+            }
           </td>
         `;
         tabela.appendChild(tr);
