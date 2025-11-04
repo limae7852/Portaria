@@ -1,151 +1,163 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GateGuard - Controle de Portaria</title>
-    <link rel="stylesheet" href="style.css">
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/feather-icons/dist/feather.min.js"></script>
-    <script src="https://unpkg.com/feather-icons"></script>
-    <script src="components/navbar.js"></script>
-    <script src="components/sidebar.js"></script>
-    <script src="components/footer.js"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GateGuard - Controle de Portaria</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/feather-icons"></script>
+  <link rel="stylesheet" href="style.css">
 </head>
+
 <body class="bg-gray-50">
-    <custom-navbar></custom-navbar>
-    
-    <div class="flex">
-        <custom-sidebar></custom-sidebar>
-        
-        <main class="flex-1 p-8">
-            <div class="max-w-6xl mx-auto">
-                <div class="flex justify-between items-center mb-8">
-                    <h1 class="text-3xl font-bold text-gray-800">Controle de Portaria</h1>
-                    <button class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center">
-                        <i data-feather="plus" class="mr-2"></i> Novo Registro
-                    </button>
-                </div>
+  <nav class="bg-white shadow p-4 flex justify-between items-center">
+    <h1 class="text-2xl font-bold text-gray-800">GateGuard</h1>
+  </nav>
 
-                <div class="bg-white rounded-xl shadow-md overflow-hidden mb-8">
-                    <div class="p-6">
-                        <div class="flex justify-between items-center mb-6">
-                            <h2 class="text-xl font-semibold text-gray-700">Registros Recentes</h2>
-                            <div class="relative">
-                                <input type="text" placeholder="Buscar..." class="pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                <i data-feather="search" class="absolute left-3 top-2.5 text-gray-400"></i>
-                            </div>
-                        </div>
-
-                        <div class="overflow-x-auto">
-                            <table class="min-w-full divide-y divide-gray-200">
-                                <thead class="bg-gray-50">
-                                    <tr>
-                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Visitante</th>
-                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Documento</th>
-                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Destino</th>
-                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Entrada</th>
-                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Saída</th>
-                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ações</th>
-                                    </tr>
-                                </thead>
-                                <tbody class="bg-white divide-y divide-gray-200">
-                                    <tr>
-                                        <td class="px-6 py-4 whitespace-nowrap">
-                                            <div class="flex items-center">
-                                                <div class="flex-shrink-0 h-10 w-10">
-                                                    <img class="h-10 w-10 rounded-full" src="http://static.photos/people/200x200/1" alt="">
-                                                </div>
-                                                <div class="ml-4">
-                                                    <div class="text-sm font-medium text-gray-900">João Silva</div>
-                                                    <div class="text-sm text-gray-500">joao@email.com</div>
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">123.456.789-00</td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Apartamento 102</td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">10:30 15/06</td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">12:45 15/06</td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                            <button class="text-blue-600 hover:text-blue-900 mr-3"><i data-feather="edit"></i></button>
-                                            <button class="text-red-600 hover:text-red-900"><i data-feather="trash-2"></i></button>
-                                        </td>
-                                    </tr>
-                                    <tr>
-                                        <td class="px-6 py-4 whitespace-nowrap">
-                                            <div class="flex items-center">
-                                                <div class="flex-shrink-0 h-10 w-10">
-                                                    <img class="h-10 w-10 rounded-full" src="http://static.photos/people/200x200/2" alt="">
-                                                </div>
-                                                <div class="ml-4">
-                                                    <div class="text-sm font-medium text-gray-900">Maria Souza</div>
-                                                    <div class="text-sm text-gray-500">maria@email.com</div>
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">987.654.321-00</td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Sala 205</td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">14:20 15/06</td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">-</td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                            <button class="text-blue-600 hover:text-blue-900 mr-3"><i data-feather="edit"></i></button>
-                                            <button class="text-red-600 hover:text-red-900"><i data-feather="trash-2"></i></button>
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                    <div class="bg-white rounded-xl shadow-md p-6">
-                        <h3 class="text-lg font-medium text-gray-800 mb-4">Entradas Hoje</h3>
-                        <div class="flex items-center">
-                            <div class="bg-blue-100 p-3 rounded-full mr-4">
-                                <i data-feather="log-in" class="text-blue-600"></i>
-                            </div>
-                            <div>
-                                <p class="text-3xl font-bold text-gray-800">24</p>
-                                <p class="text-sm text-gray-500">+3 em relação a ontem</p>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="bg-white rounded-xl shadow-md p-6">
-                        <h3 class="text-lg font-medium text-gray-800 mb-4">Visitantes Presentes</h3>
-                        <div class="flex items-center">
-                            <div class="bg-green-100 p-3 rounded-full mr-4">
-                                <i data-feather="users" class="text-green-600"></i>
-                            </div>
-                            <div>
-                                <p class="text-3xl font-bold text-gray-800">5</p>
-                                <p class="text-sm text-gray-500">No local atualmente</p>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="bg-white rounded-xl shadow-md p-6">
-                        <h3 class="text-lg font-medium text-gray-800 mb-4">Entradas Mês</h3>
-                        <div class="flex items-center">
-                            <div class="bg-purple-100 p-3 rounded-full mr-4">
-                                <i data-feather="calendar" class="text-purple-600"></i>
-                            </div>
-                            <div>
-                                <p class="text-3xl font-bold text-gray-800">342</p>
-                                <p class="text-sm text-gray-500">Média de 11 por dia</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </main>
+  <main class="p-8 max-w-6xl mx-auto">
+    <div class="flex justify-between items-center mb-8">
+      <h1 class="text-3xl font-bold text-gray-800">Controle de Portaria</h1>
+      <button id="novoRegistroBtn" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center">
+        <i data-feather="plus" class="mr-2"></i> Novo Registro
+      </button>
     </div>
 
-    <custom-footer></custom-footer>
+    <div class="bg-white rounded-xl shadow-md overflow-hidden mb-8">
+      <div class="p-6">
+        <div class="flex justify-between items-center mb-6">
+          <h2 class="text-xl font-semibold text-gray-700">Registros Recentes</h2>
+        </div>
 
-    <script>
-        feather.replace();
-    </script>
-    <script src="script.js"></script>
-<script src="https://huggingface.co/deepsite/deepsite-badge.js"></script>
+        <div class="overflow-x-auto">
+          <table class="min-w-full divide-y divide-gray-200" id="tabelaRegistros">
+            <thead class="bg-gray-50">
+              <tr>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Visitante</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Documento</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Destino</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Entrada</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Saída</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ações</th>
+              </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200" id="listaRegistros">
+              <!-- registros virão do Firestore -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Modal para novo registro -->
+  <div id="modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+    <div class="bg-white p-6 rounded-xl shadow-xl w-96">
+      <h2 class="text-xl font-semibold mb-4">Novo Registro</h2>
+      <input id="visitante" type="text" placeholder="Nome do visitante" class="w-full border p-2 rounded mb-3">
+      <input id="documento" type="text" placeholder="Documento (CPF ou RG)" class="w-full border p-2 rounded mb-3">
+      <input id="destino" type="text" placeholder="Destino (Ex: Apto 101)" class="w-full border p-2 rounded mb-3">
+      <div class="flex justify-end space-x-3">
+        <button id="cancelar" class="bg-gray-300 px-4 py-2 rounded">Cancelar</button>
+        <button id="salvar" class="bg-blue-600 text-white px-4 py-2 rounded">Salvar</button>
+      </div>
+    </div>
+  </div>
+
+  <footer class="text-center py-4 text-gray-500">© 2025 GateGuard</footer>
+
+  <!-- Firebase SDK -->
+  <script type="module">
+    // Importar Firebase SDKs (v9 modular)
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+    import { getFirestore, collection, addDoc, deleteDoc, doc, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+
+    // 🔥 CONFIGURAÇÃO DO FIREBASE
+    const firebaseConfig = {
+      apiKey: "AIzaSyCmZBxRVcmTPJFLdWWcNd07LZPJYZnR5N0",
+      authDomain: "portaria-e22ae.firebaseapp.com",
+      projectId: "portaria-e22ae",
+      storageBucket: "portaria-e22ae.firebasestorage.app",
+      messagingSenderId: "663485115589",
+      appId: "1:663485115589:web:4b2f860ede7f0f7b5854ac",
+      measurementId: "G-QEGQN6CTBB"
+    };
+
+    // Inicializar Firebase
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    const tabela = document.getElementById("listaRegistros");
+    const modal = document.getElementById("modal");
+    const btnNovo = document.getElementById("novoRegistroBtn");
+    const btnSalvar = document.getElementById("salvar");
+    const btnCancelar = document.getElementById("cancelar");
+
+    btnNovo.addEventListener("click", () => modal.classList.remove("hidden"));
+    btnCancelar.addEventListener("click", () => modal.classList.add("hidden"));
+
+    // Função para salvar registro
+    btnSalvar.addEventListener("click", async () => {
+      const visitante = document.getElementById("visitante").value;
+      const documento = document.getElementById("documento").value;
+      const destino = document.getElementById("destino").value;
+
+      if (!visitante || !documento || !destino) {
+        alert("Preencha todos os campos!");
+        return;
+      }
+
+      await addDoc(collection(db, "registros"), {
+        visitante,
+        documento,
+        destino,
+        entrada: new Date().toLocaleString(),
+        saida: "-",
+        timestamp: serverTimestamp()
+      });
+
+      modal.classList.add("hidden");
+      document.getElementById("visitante").value = "";
+      document.getElementById("documento").value = "";
+      document.getElementById("destino").value = "";
+    });
+
+    // Atualiza tabela em tempo real
+    onSnapshot(collection(db, "registros"), (snapshot) => {
+      tabela.innerHTML = "";
+      snapshot.forEach((docSnap) => {
+        const dados = docSnap.data();
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td class="px-6 py-4 text-sm text-gray-900">${dados.visitante}</td>
+          <td class="px-6 py-4 text-sm text-gray-500">${dados.documento}</td>
+          <td class="px-6 py-4 text-sm text-gray-500">${dados.destino}</td>
+          <td class="px-6 py-4 text-sm text-gray-500">${dados.entrada}</td>
+          <td class="px-6 py-4 text-sm text-gray-500">${dados.saida}</td>
+          <td class="px-6 py-4 text-sm text-gray-500">
+            <button class="text-red-600 hover:text-red-900" data-id="${docSnap.id}">
+              <i data-feather="trash-2"></i>
+            </button>
+          </td>
+        `;
+        tabela.appendChild(tr);
+      });
+
+      // Recarregar ícones Feather
+      feather.replace();
+
+      // Adicionar eventos de exclusão
+      document.querySelectorAll('[data-id]').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          if (confirm('Deseja excluir este registro?')) {
+            await deleteDoc(doc(db, "registros", btn.dataset.id));
+          }
+        });
+      });
+    });
+  </script>
+
+  <script>
+    feather.replace();
+  </script>
 </body>
 </html>
