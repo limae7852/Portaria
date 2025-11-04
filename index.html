@@ -7,12 +7,11 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/feather-icons"></script>
   <style>
-    /* Pequeno ajuste para o modal */
     #modal { z-index: 60; }
+    .filter-active { box-shadow: 0 0 0 3px rgba(59,130,246,0.25); }
   </style>
 </head>
 <body class="bg-gray-50">
-  <!-- Navbar -->
   <nav class="bg-white shadow p-4 flex justify-between items-center">
     <h1 class="text-2xl font-bold text-gray-800">GateGuard</h1>
   </nav>
@@ -33,7 +32,6 @@
       <button id="filtroSaida" class="bg-red-200 hover:bg-red-300 px-3 py-1 rounded">Saíram</button>
     </div>
 
-    <!-- Tabela -->
     <div class="bg-white rounded-xl shadow-md overflow-hidden mb-8">
       <div class="p-6">
         <div class="overflow-x-auto">
@@ -75,17 +73,15 @@
 
   <footer class="text-center py-4 text-gray-500">© 2025 GateGuard</footer>
 
-  <!-- Script principal: use type=module para Firebase (não mudar) -->
   <script type="module">
-    // Espera DOM pronto para evitar problemas com elementos não existentes
     document.addEventListener('DOMContentLoaded', async () => {
       try {
-        // Import Firebase (v10 modular)
         const { initializeApp } = await import('https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js');
-        const { getFirestore, collection, addDoc, deleteDoc, updateDoc, doc, onSnapshot, serverTimestamp } =
-          await import('https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js');
+        const {
+          getFirestore, collection, addDoc, deleteDoc, updateDoc, doc, onSnapshot, serverTimestamp
+        } = await import('https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js');
 
-        // ======== CONFIGURE AQUI O FIREBASE ========
+        // ====== CONFIGURE AQUI ======
         const firebaseConfig = {
           apiKey: "AIzaSyCmZBxRVcmTPJFLdWWcNd07LZPJYZnR5N0",
           authDomain: "portaria-e22ae.firebaseapp.com",
@@ -95,7 +91,7 @@
           appId: "1:663485115589:web:4b2f860ede7f0f7b5854ac",
           measurementId: "G-QEGQN6CTBB"
         };
-        // ===========================================
+        // ============================
 
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
@@ -110,37 +106,34 @@
         const filtroTodos = document.getElementById("filtroTodos");
         const filtroPresentes = document.getElementById("filtroPresentes");
         const filtroSaida = document.getElementById("filtroSaida");
+
         let filtroAtual = "todos";
+        let docsCache = []; // <-- cache local dos dados
 
-        // Garanta que os ícones sejam renderizados (icone + texto)
-        feather.replace();
+        // Render inicial de icons
+        try { feather.replace(); } catch(e) {}
 
-        // Abre/fecha modal
+        // abrir/fechar modal
         btnNovo.addEventListener("click", () => {
           modal.classList.remove("hidden");
-          // foco no primeiro campo
           const v = document.getElementById('visitante');
           if (v) v.focus();
         });
         btnCancelar.addEventListener("click", () => modal.classList.add("hidden"));
 
-        // helper de leitura segura do input
-        const inputVal = id => {
-          const el = document.getElementById(id);
-          return el ? el.value.trim() : "";
-        };
+        const getVal = id => (document.getElementById(id) ? document.getElementById(id).value.trim() : "");
 
-        // Salva novo registro
+        // salvar
         btnSalvar.addEventListener("click", async () => {
           try {
-            const visitante = inputVal("visitante");
-            const documento = inputVal("documento");
-            const placa = inputVal("placa");
-            const destino = inputVal("destino");
-            const motivo = inputVal("motivo");
+            const visitante = getVal("visitante");
+            const documento = getVal("documento");
+            const placa = getVal("placa");
+            const destino = getVal("destino");
+            const motivo = getVal("motivo");
 
             if (!visitante || !documento || !destino || !motivo) {
-              alert("Preencha todos os campos obrigatórios: visitante, documento, destino e motivo.");
+              alert("Preencha os campos obrigatórios: visitante, documento, destino e motivo.");
               return;
             }
 
@@ -155,30 +148,31 @@
               timestamp: serverTimestamp()
             });
 
-            // limpa campos e fecha modal
             ["visitante","documento","placa","destino","motivo"].forEach(id => {
-              const el = document.getElementById(id);
-              if (el) el.value = "";
+              const el = document.getElementById(id); if (el) el.value = "";
             });
             modal.classList.add("hidden");
           } catch (err) {
-            console.error("Erro ao salvar registro:", err);
-            alert("Erro ao salvar. Veja o console para detalhes.");
+            console.error("Erro salvar:", err); alert("Erro ao salvar (veja console).");
           }
         });
 
-        // Renderização com filtro e listeners
+        // renderiza tabela com base em registros passados
         function renderizar(registros) {
           tabela.innerHTML = "";
-
           let filtrados = registros;
-          if (filtroAtual === "presentes") filtrados = registros.filter(r => r.saida === "-" || !r.saida);
+          if (filtroAtual === "presentes") filtrados = registros.filter(r => !r.saida || r.saida === "-");
           if (filtroAtual === "saida") filtrados = registros.filter(r => r.saida && r.saida !== "-");
 
-          filtrados.forEach(dados => {
-            const tr = document.createElement("tr");
-            const temSaida = dados.saida && dados.saida !== "-";
+          // se nenhum registro
+          if (filtrados.length === 0) {
+            tabela.innerHTML = `<tr><td class="px-6 py-8 text-center text-gray-500" colspan="8">Nenhum registro encontrado.</td></tr>`;
+            return;
+          }
 
+          filtrados.forEach(dados => {
+            const temSaida = dados.saida && dados.saida !== "-";
+            const tr = document.createElement("tr");
             tr.innerHTML = `
               <td class="px-6 py-4 text-sm text-gray-900">${escapeHtml(dados.visitante)}</td>
               <td class="px-6 py-4 text-sm text-gray-500">${escapeHtml(dados.documento)}</td>
@@ -189,12 +183,8 @@
               <td class="px-6 py-4 text-sm text-gray-500">${escapeHtml(dados.saida)}</td>
               <td class="px-6 py-4 text-sm">
                 ${!temSaida
-                  ? `<button class="text-green-600 hover:text-green-900 mr-3" data-saida="${dados.id}" title="Registrar saída">
-                       <i data-feather="log-out"></i>
-                     </button>
-                     <button class="text-red-600 hover:text-red-900" data-del="${dados.id}" title="Excluir registro">
-                       <i data-feather="trash-2"></i>
-                     </button>`
+                  ? `<button class="text-green-600 hover:text-green-900 mr-3" data-saida="${dados.id}" title="Registrar saída"><i data-feather="log-out"></i></button>
+                     <button class="text-red-600 hover:text-red-900" data-del="${dados.id}" title="Excluir registro"><i data-feather="trash-2"></i></button>`
                   : `<span class="text-gray-400 italic">Concluído</span>`
                 }
               </td>
@@ -202,91 +192,80 @@
             tabela.appendChild(tr);
           });
 
-          // renderiza ícones novamente (novos botões)
           feather.replace();
 
-          // listeners (registrando depois de inserir no DOM)
+          // listeners dos botões inseridos
           document.querySelectorAll("[data-saida]").forEach(btn => {
-            btn.addEventListener("click", async (ev) => {
+            btn.addEventListener("click", async () => {
+              const id = btn.dataset.saida;
+              if (!id) return;
+              if (!confirm("Registrar saída deste visitante?")) return;
               try {
-                const id = btn.dataset.saida;
-                if (!id) return;
-                if (!confirm("Registrar saída deste visitante?")) return;
                 await updateDoc(doc(db, "registros", id), { saida: new Date().toLocaleString() });
-                // após update, onSnapshot atualizará a tabela
-              } catch (err) {
-                console.error("Erro ao registrar saída:", err);
-                alert("Erro ao registrar saída. Veja o console.");
-              }
+                // onSnapshot atualizará docsCache e re-renderizará
+              } catch (err) { console.error("Erro saída:", err); alert("Erro ao registrar saída."); }
             });
           });
 
           document.querySelectorAll("[data-del]").forEach(btn => {
             btn.addEventListener("click", async () => {
+              const id = btn.dataset.del;
+              if (!id) return;
+              if (!confirm("Deseja excluir este registro?")) return;
               try {
-                const id = btn.dataset.del;
-                if (!id) return;
-                if (!confirm("Deseja excluir este registro?")) return;
                 await deleteDoc(doc(db, "registros", id));
-              } catch (err) {
-                console.error("Erro ao deletar:", err);
-                alert("Erro ao excluir registro. Veja o console.");
-              }
+              } catch (err) { console.error("Erro deletar:", err); alert("Erro ao excluir registro."); }
             });
           });
         }
 
-        // defesa contra XSS simples na exibição
         function escapeHtml(str) {
-          if (!str && str !== 0) return "";
-          return String(str)
-            .replace(/&/g, "&amp;")
-            .replace(/</g, "&lt;")
-            .replace(/>/g, "&gt;")
-            .replace(/"/g, "&quot;")
-            .replace(/'/g, "&#039;");
+          if (str === null || str === undefined) return "";
+          return String(str).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
+                            .replace(/"/g,"&quot;").replace(/'/g,"&#039;");
         }
 
-        // Filtros
-        filtroTodos.addEventListener("click", () => { filtroAtual = "todos"; atualizarCorFiltros(); });
-        filtroPresentes.addEventListener("click", () => { filtroAtual = "presentes"; atualizarCorFiltros(); });
-        filtroSaida.addEventListener("click", () => { filtroAtual = "saida"; atualizarCorFiltros(); });
-
-        function atualizarCorFiltros() {
-          [filtroTodos, filtroPresentes, filtroSaida].forEach(btn => {
-            btn.classList.remove("ring-2","ring-blue-500");
-          });
-          if (filtroAtual === "todos") filtroTodos.classList.add("ring-2","ring-blue-500");
-          if (filtroAtual === "presentes") filtroPresentes.classList.add("ring-2","ring-blue-500");
-          if (filtroAtual === "saida") filtroSaida.classList.add("ring-2","ring-blue-500");
+        // filtros: alteram filtroAtual, atualizam visual e re-renderizam imediatamente usando docsCache
+        function setFilter(f) {
+          filtroAtual = f;
+          atualizarVisualFiltro();
+          renderizar(docsCache);
         }
-        atualizarCorFiltros();
+        filtroTodos.addEventListener("click", () => setFilter("todos"));
+        filtroPresentes.addEventListener("click", () => setFilter("presentes"));
+        filtroSaida.addEventListener("click", () => setFilter("saida"));
 
-        // onSnapshot em tempo real
+        function atualizarVisualFiltro() {
+          [filtroTodos, filtroPresentes, filtroSaida].forEach(btn => btn.classList.remove("filter-active"));
+          if (filtroAtual === "todos") filtroTodos.classList.add("filter-active");
+          if (filtroAtual === "presentes") filtroPresentes.classList.add("filter-active");
+          if (filtroAtual === "saida") filtroSaida.classList.add("filter-active");
+        }
+        atualizarVisualFiltro();
+
+        // onSnapshot atualiza docsCache e re-renderiza com o filtro atual
         const colRef = collection(db, "registros");
         onSnapshot(colRef, (snapshot) => {
-          const docs = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-          // ordena por timestamp (mais recente primeiro), se existir
-          docs.sort((a,b) => {
-            const ta = a.timestamp ? a.timestamp.seconds || 0 : 0;
-            const tb = b.timestamp ? b.timestamp.seconds || 0 : 0;
+          docsCache = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+          // opcional: ordenar por timestamp (mais recente primeiro)
+          docsCache.sort((a,b) => {
+            const ta = a.timestamp ? (a.timestamp.seconds || 0) : 0;
+            const tb = b.timestamp ? (b.timestamp.seconds || 0) : 0;
             return tb - ta;
           });
-          renderizar(docs);
-        }, (err) => {
-          console.error("Erro no onSnapshot:", err);
+          renderizar(docsCache);
+        }, err => {
+          console.error("onSnapshot erro:", err);
         });
 
       } catch (err) {
-        console.error("Erro no script principal:", err);
-        alert("Ocorreu um erro ao carregar funcionalidades. Veja o console (F12).");
+        console.error("Erro inicialização:", err);
+        alert("Erro ao carregar app. Veja o console (F12).");
       }
     });
   </script>
 
-  <script>
-    // Garante que ícones básicos do HTML (antes do module) também sejam renderizados
-    try { feather.replace(); } catch (e) { /* ignore */ }
-  </script>
+  <!-- fallback feather init -->
+  <script> try { feather.replace(); } catch(e){} </script>
 </body>
 </html>
