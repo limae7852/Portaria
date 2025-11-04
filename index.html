@@ -1,13 +1,16 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>GateGuard - Controle de Portaria</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/feather-icons"></script>
+  <style>
+    /* Pequeno ajuste para o modal */
+    #modal { z-index: 60; }
+  </style>
 </head>
-
 <body class="bg-gray-50">
   <!-- Navbar -->
   <nav class="bg-white shadow p-4 flex justify-between items-center">
@@ -15,14 +18,14 @@
   </nav>
 
   <main class="p-8 max-w-7xl mx-auto">
-    <div class="flex justify-between items-center mb-8">
+    <div class="flex justify-between items-center mb-4">
       <h1 class="text-3xl font-bold text-gray-800">Controle de Portaria</h1>
       <button id="novoRegistroBtn" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center">
         <i data-feather="plus" class="mr-2"></i> Novo Registro
       </button>
     </div>
 
-    <!-- Filtro -->
+    <!-- Filtros -->
     <div class="flex items-center space-x-3 mb-6">
       <span class="text-gray-700 font-semibold">Filtrar:</span>
       <button id="filtroTodos" class="bg-gray-200 hover:bg-gray-300 px-3 py-1 rounded">Todos</button>
@@ -72,148 +75,218 @@
 
   <footer class="text-center py-4 text-gray-500">© 2025 GateGuard</footer>
 
-  <!-- Firebase -->
+  <!-- Script principal: use type=module para Firebase (não mudar) -->
   <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-    import {
-      getFirestore, collection, addDoc, deleteDoc, updateDoc, doc, onSnapshot, serverTimestamp
-    } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+    // Espera DOM pronto para evitar problemas com elementos não existentes
+    document.addEventListener('DOMContentLoaded', async () => {
+      try {
+        // Import Firebase (v10 modular)
+        const { initializeApp } = await import('https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js');
+        const { getFirestore, collection, addDoc, deleteDoc, updateDoc, doc, onSnapshot, serverTimestamp } =
+          await import('https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js');
 
-    // 🔥 Configuração Firebase (substitua pelos seus dados)
-    const firebaseConfig = {
-      apiKey: "AIzaSyCmZBxRVcmTPJFLdWWcNd07LZPJYZnR5N0",
-      authDomain: "portaria-e22ae.firebaseapp.com",
-      projectId: "portaria-e22ae",
-      storageBucket: "portaria-e22ae.firebasestorage.app",
-      messagingSenderId: "663485115589",
-      appId: "1:663485115589:web:4b2f860ede7f0f7b5854ac",
-      measurementId: "G-QEGQN6CTBB""
-    };
+        // ======== CONFIGURE AQUI O FIREBASE ========
+        const firebaseConfig = {
+          apiKey: "AIzaSyCmZBxRVcmTPJFLdWWcNd07LZPJYZnR5N0",
+          authDomain: "portaria-e22ae.firebaseapp.com",
+          projectId: "portaria-e22ae",
+          storageBucket: "portaria-e22ae.firebasestorage.app",
+          messagingSenderId: "663485115589",
+          appId: "1:663485115589:web:4b2f860ede7f0f7b5854ac",
+          measurementId: "G-QEGQN6CTBB"
+        };
+        // ===========================================
 
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
 
-    const tabela = document.getElementById("listaRegistros");
-    const modal = document.getElementById("modal");
-    const btnNovo = document.getElementById("novoRegistroBtn");
-    const btnSalvar = document.getElementById("salvar");
-    const btnCancelar = document.getElementById("cancelar");
+        // elementos
+        const tabela = document.getElementById("listaRegistros");
+        const modal = document.getElementById("modal");
+        const btnNovo = document.getElementById("novoRegistroBtn");
+        const btnSalvar = document.getElementById("salvar");
+        const btnCancelar = document.getElementById("cancelar");
 
-    const filtroTodos = document.getElementById("filtroTodos");
-    const filtroPresentes = document.getElementById("filtroPresentes");
-    const filtroSaida = document.getElementById("filtroSaida");
+        const filtroTodos = document.getElementById("filtroTodos");
+        const filtroPresentes = document.getElementById("filtroPresentes");
+        const filtroSaida = document.getElementById("filtroSaida");
+        let filtroAtual = "todos";
 
-    let filtroAtual = "todos";
+        // Garanta que os ícones sejam renderizados (icone + texto)
+        feather.replace();
 
-    btnNovo.addEventListener("click", () => modal.classList.remove("hidden"));
-    btnCancelar.addEventListener("click", () => modal.classList.add("hidden"));
+        // Abre/fecha modal
+        btnNovo.addEventListener("click", () => {
+          modal.classList.remove("hidden");
+          // foco no primeiro campo
+          const v = document.getElementById('visitante');
+          if (v) v.focus();
+        });
+        btnCancelar.addEventListener("click", () => modal.classList.add("hidden"));
 
-    btnSalvar.addEventListener("click", async () => {
-      const visitante = visitanteInput("visitante");
-      const documento = visitanteInput("documento");
-      const placa = visitanteInput("placa");
-      const destino = visitanteInput("destino");
-      const motivo = visitanteInput("motivo");
+        // helper de leitura segura do input
+        const inputVal = id => {
+          const el = document.getElementById(id);
+          return el ? el.value.trim() : "";
+        };
 
-      if (!visitante || !documento || !destino || !motivo) {
-        alert("Preencha todos os campos obrigatórios!");
-        return;
-      }
+        // Salva novo registro
+        btnSalvar.addEventListener("click", async () => {
+          try {
+            const visitante = inputVal("visitante");
+            const documento = inputVal("documento");
+            const placa = inputVal("placa");
+            const destino = inputVal("destino");
+            const motivo = inputVal("motivo");
 
-      await addDoc(collection(db, "registros"), {
-        visitante,
-        documento,
-        placa: placa || "-",
-        destino,
-        motivo,
-        entrada: new Date().toLocaleString(),
-        saida: "-",
-        timestamp: serverTimestamp()
-      });
-
-      modal.classList.add("hidden");
-      ["visitante","documento","placa","destino","motivo"].forEach(id => document.getElementById(id).value = "");
-    });
-
-    const visitanteInput = (id) => document.getElementById(id).value.trim();
-
-    // 🔄 Atualização em tempo real
-    onSnapshot(collection(db, "registros"), (snapshot) => {
-      renderizar(snapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() })));
-    });
-
-    // 🔁 Função de renderização com filtro
-    function renderizar(registros) {
-      tabela.innerHTML = "";
-
-      let filtrados = registros;
-      if (filtroAtual === "presentes") filtrados = registros.filter(r => r.saida === "-");
-      if (filtroAtual === "saida") filtrados = registros.filter(r => r.saida !== "-");
-
-      filtrados.forEach((dados) => {
-        const tr = document.createElement("tr");
-        const temSaida = dados.saida !== "-";
-
-        tr.innerHTML = `
-          <td class="px-6 py-4 text-sm text-gray-900">${dados.visitante}</td>
-          <td class="px-6 py-4 text-sm text-gray-500">${dados.documento}</td>
-          <td class="px-6 py-4 text-sm text-gray-500">${dados.placa}</td>
-          <td class="px-6 py-4 text-sm text-gray-500">${dados.destino}</td>
-          <td class="px-6 py-4 text-sm text-gray-500">${dados.motivo}</td>
-          <td class="px-6 py-4 text-sm text-gray-500">${dados.entrada}</td>
-          <td class="px-6 py-4 text-sm text-gray-500">${dados.saida}</td>
-          <td class="px-6 py-4 text-sm">
-            ${!temSaida
-              ? `
-                <button class="text-green-600 hover:text-green-900 mr-3" data-saida="${dados.id}">
-                  <i data-feather="log-out"></i>
-                </button>
-                <button class="text-red-600 hover:text-red-900" data-del="${dados.id}">
-                  <i data-feather="trash-2"></i>
-                </button>`
-              : `<span class="text-gray-400 italic">Concluído</span>`
+            if (!visitante || !documento || !destino || !motivo) {
+              alert("Preencha todos os campos obrigatórios: visitante, documento, destino e motivo.");
+              return;
             }
-          </td>
-        `;
-        tabela.appendChild(tr);
-      });
 
-      feather.replace();
-
-      document.querySelectorAll("[data-saida]").forEach(btn => {
-        btn.addEventListener("click", async () => {
-          const id = btn.dataset.saida;
-          if (confirm("Registrar saída deste visitante?")) {
-            await updateDoc(doc(db, "registros", id), {
-              saida: new Date().toLocaleString()
+            await addDoc(collection(db, "registros"), {
+              visitante,
+              documento,
+              placa: placa || "-",
+              destino,
+              motivo,
+              entrada: new Date().toLocaleString(),
+              saida: "-",
+              timestamp: serverTimestamp()
             });
+
+            // limpa campos e fecha modal
+            ["visitante","documento","placa","destino","motivo"].forEach(id => {
+              const el = document.getElementById(id);
+              if (el) el.value = "";
+            });
+            modal.classList.add("hidden");
+          } catch (err) {
+            console.error("Erro ao salvar registro:", err);
+            alert("Erro ao salvar. Veja o console para detalhes.");
           }
         });
-      });
 
-      document.querySelectorAll("[data-del]").forEach(btn => {
-        btn.addEventListener("click", async () => {
-          if (confirm("Deseja excluir este registro?")) {
-            await deleteDoc(doc(db, "registros", btn.dataset.del));
-          }
+        // Renderização com filtro e listeners
+        function renderizar(registros) {
+          tabela.innerHTML = "";
+
+          let filtrados = registros;
+          if (filtroAtual === "presentes") filtrados = registros.filter(r => r.saida === "-" || !r.saida);
+          if (filtroAtual === "saida") filtrados = registros.filter(r => r.saida && r.saida !== "-");
+
+          filtrados.forEach(dados => {
+            const tr = document.createElement("tr");
+            const temSaida = dados.saida && dados.saida !== "-";
+
+            tr.innerHTML = `
+              <td class="px-6 py-4 text-sm text-gray-900">${escapeHtml(dados.visitante)}</td>
+              <td class="px-6 py-4 text-sm text-gray-500">${escapeHtml(dados.documento)}</td>
+              <td class="px-6 py-4 text-sm text-gray-500">${escapeHtml(dados.placa || "-")}</td>
+              <td class="px-6 py-4 text-sm text-gray-500">${escapeHtml(dados.destino)}</td>
+              <td class="px-6 py-4 text-sm text-gray-500">${escapeHtml(dados.motivo || "-")}</td>
+              <td class="px-6 py-4 text-sm text-gray-500">${escapeHtml(dados.entrada)}</td>
+              <td class="px-6 py-4 text-sm text-gray-500">${escapeHtml(dados.saida)}</td>
+              <td class="px-6 py-4 text-sm">
+                ${!temSaida
+                  ? `<button class="text-green-600 hover:text-green-900 mr-3" data-saida="${dados.id}" title="Registrar saída">
+                       <i data-feather="log-out"></i>
+                     </button>
+                     <button class="text-red-600 hover:text-red-900" data-del="${dados.id}" title="Excluir registro">
+                       <i data-feather="trash-2"></i>
+                     </button>`
+                  : `<span class="text-gray-400 italic">Concluído</span>`
+                }
+              </td>
+            `;
+            tabela.appendChild(tr);
+          });
+
+          // renderiza ícones novamente (novos botões)
+          feather.replace();
+
+          // listeners (registrando depois de inserir no DOM)
+          document.querySelectorAll("[data-saida]").forEach(btn => {
+            btn.addEventListener("click", async (ev) => {
+              try {
+                const id = btn.dataset.saida;
+                if (!id) return;
+                if (!confirm("Registrar saída deste visitante?")) return;
+                await updateDoc(doc(db, "registros", id), { saida: new Date().toLocaleString() });
+                // após update, onSnapshot atualizará a tabela
+              } catch (err) {
+                console.error("Erro ao registrar saída:", err);
+                alert("Erro ao registrar saída. Veja o console.");
+              }
+            });
+          });
+
+          document.querySelectorAll("[data-del]").forEach(btn => {
+            btn.addEventListener("click", async () => {
+              try {
+                const id = btn.dataset.del;
+                if (!id) return;
+                if (!confirm("Deseja excluir este registro?")) return;
+                await deleteDoc(doc(db, "registros", id));
+              } catch (err) {
+                console.error("Erro ao deletar:", err);
+                alert("Erro ao excluir registro. Veja o console.");
+              }
+            });
+          });
+        }
+
+        // defesa contra XSS simples na exibição
+        function escapeHtml(str) {
+          if (!str && str !== 0) return "";
+          return String(str)
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+        }
+
+        // Filtros
+        filtroTodos.addEventListener("click", () => { filtroAtual = "todos"; atualizarCorFiltros(); });
+        filtroPresentes.addEventListener("click", () => { filtroAtual = "presentes"; atualizarCorFiltros(); });
+        filtroSaida.addEventListener("click", () => { filtroAtual = "saida"; atualizarCorFiltros(); });
+
+        function atualizarCorFiltros() {
+          [filtroTodos, filtroPresentes, filtroSaida].forEach(btn => {
+            btn.classList.remove("ring-2","ring-blue-500");
+          });
+          if (filtroAtual === "todos") filtroTodos.classList.add("ring-2","ring-blue-500");
+          if (filtroAtual === "presentes") filtroPresentes.classList.add("ring-2","ring-blue-500");
+          if (filtroAtual === "saida") filtroSaida.classList.add("ring-2","ring-blue-500");
+        }
+        atualizarCorFiltros();
+
+        // onSnapshot em tempo real
+        const colRef = collection(db, "registros");
+        onSnapshot(colRef, (snapshot) => {
+          const docs = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+          // ordena por timestamp (mais recente primeiro), se existir
+          docs.sort((a,b) => {
+            const ta = a.timestamp ? a.timestamp.seconds || 0 : 0;
+            const tb = b.timestamp ? b.timestamp.seconds || 0 : 0;
+            return tb - ta;
+          });
+          renderizar(docs);
+        }, (err) => {
+          console.error("Erro no onSnapshot:", err);
         });
-      });
-    }
 
-    // 🎚️ Filtros
-    filtroTodos.onclick = () => { filtroAtual = "todos"; atualizarCorFiltros(); };
-    filtroPresentes.onclick = () => { filtroAtual = "presentes"; atualizarCorFiltros(); };
-    filtroSaida.onclick = () => { filtroAtual = "saida"; atualizarCorFiltros(); };
-
-    function atualizarCorFiltros() {
-      [filtroTodos, filtroPresentes, filtroSaida].forEach(btn => btn.classList.remove("ring-2", "ring-blue-500"));
-      if (filtroAtual === "todos") filtroTodos.classList.add("ring-2", "ring-blue-500");
-      if (filtroAtual === "presentes") filtroPresentes.classList.add("ring-2", "ring-blue-500");
-      if (filtroAtual === "saida") filtroSaida.classList.add("ring-2", "ring-blue-500");
-    }
-
+      } catch (err) {
+        console.error("Erro no script principal:", err);
+        alert("Ocorreu um erro ao carregar funcionalidades. Veja o console (F12).");
+      }
+    });
   </script>
 
-  <script>feather.replace();</script>
+  <script>
+    // Garante que ícones básicos do HTML (antes do module) também sejam renderizados
+    try { feather.replace(); } catch (e) { /* ignore */ }
+  </script>
 </body>
 </html>
